@@ -1,0 +1,15 @@
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:processDebugManifestForPackage'.
+> Cannot access output property 'packageManifests' of task ':app:processDebugManifestForPackage'. Accessing unreadable inputs or outputs is not supported. Declare the task as untracked by using Task.doNotTrackState(). For more information, please refer to https://docs.gradle.org/8.7/userguide/incremental_build.html#sec:disable-state-tracking in the Gradle documentation.
+   > java.io.IOException: Cannot snapshot C:\Users\hbirring\OneDrive\Dev\CreditCardApp\app\build\intermediates\packaged_manifests\debug\processDebugManifestForPackage\AndroidManifest.xml: not a regular file
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2m 40s

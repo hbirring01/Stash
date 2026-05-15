@@ -1,0 +1,13 @@
+{
+  "name": "creditcardapp-plaid-server",
+  "version": "1.0.0",
+  "description": "Minimal Plaid sandbox proxy for CreditCardApp.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0"
+  }
+}
