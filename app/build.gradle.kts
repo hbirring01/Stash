@@ -10,8 +10,15 @@ plugins {
 }
 
 // Move build outputs outside OneDrive — OneDrive sync corrupts/locks files
-// (e.g. KSP generated dirs and packaged manifests) mid-build.
-layout.buildDirectory.set(file("C:/CCBuild/app"))
+// (e.g. KSP generated dirs and packaged manifests) mid-build. Only applies on
+// the local Windows dev box; CI (Linux) uses the default `app/build` directory.
+run {
+    val override = System.getenv("ANDROID_BUILD_DIR")
+        ?: if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
+            && file("C:/CCBuild").exists()
+        ) "C:/CCBuild/app" else null
+    if (override != null) layout.buildDirectory.set(file(override))
+}
 
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
