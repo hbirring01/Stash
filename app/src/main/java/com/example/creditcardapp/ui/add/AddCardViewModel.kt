@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.creditcardapp.data.repository.CreditCardRepository
 import com.example.creditcardapp.domain.model.CreditCard
+import com.example.creditcardapp.domain.model.RewardCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,8 @@ data class AddCardUiState(
     val last4: String = "",
     val creditLimit: String = "",
     val balance: String = "",
+    /** Bonus multiplier per category. Missing categories default to 1x. */
+    val rewards: Map<RewardCategory, Double> = emptyMap(),
     val saving: Boolean = false,
     val error: String? = null
 ) {
@@ -37,6 +40,18 @@ class AddCardViewModel @Inject constructor(
         _state.update(transform)
     }
 
+    /**
+     * Set the bonus multiplier for [category]. Passing a value of 1.0 or less
+     * removes the entry (1x is the implicit default, no need to store it).
+     */
+    fun setMultiplier(category: RewardCategory, multiplier: Double) {
+        _state.update { s ->
+            val next = s.rewards.toMutableMap()
+            if (multiplier <= 1.0) next.remove(category) else next[category] = multiplier
+            s.copy(rewards = next)
+        }
+    }
+
     fun save(onSaved: () -> Unit) {
         val s = _state.value
         if (!s.canSave) return
@@ -52,7 +67,8 @@ class AddCardViewModel @Inject constructor(
                         expiryYear = 0,
                         balance = s.balance.toDoubleOrNull() ?: 0.0,
                         creditLimit = s.creditLimit.toDouble(),
-                        nickname = s.nickname.trim().ifBlank { null }
+                        nickname = s.nickname.trim().ifBlank { null },
+                        rewards = s.rewards,
                     )
                 )
             }.onSuccess {

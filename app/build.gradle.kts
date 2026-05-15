@@ -37,8 +37,10 @@ android {
         applicationId = "com.example.creditcardapp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // versionCode/versionName can be overridden by CI via env vars
+        // (set from the git tag in release.yml). Falls back to 1 / "1.0" locally.
+        versionCode = (System.getenv("RELEASE_VERSION_CODE") ?: "1").toInt()
+        versionName = System.getenv("RELEASE_VERSION_NAME") ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -51,32 +53,30 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            val storePath = localProp("RELEASE_STORE_FILE")
-            if (storePath.isNotBlank()) {
-                storeFile = file(storePath)
-                storePassword = localProp("RELEASE_STORE_PASSWORD")
-                keyAlias = localProp("RELEASE_KEY_ALIAS")
-                keyPassword = localProp("RELEASE_KEY_PASSWORD")
-            }
+        // Stable signing key committed to the repo (app/upgrade.keystore).
+        // This is NOT a Play Store key — purpose is solely to keep the APK
+        // signature consistent across releases so installs preserve user data.
+        create("upgrade") {
+            storeFile = file("upgrade.keystore")
+            storePassword = "stashapp"
+            keyAlias = "upgrade"
+            keyPassword = "stashapp"
         }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            val storePath = localProp("RELEASE_STORE_FILE")
-            if (storePath.isNotBlank()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            // Keep minify off for now — enabling without tested ProGuard rules
+            // tends to strip Hilt/Room/Retrofit/SQLCipher reflection targets.
+            isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("upgrade")
         }
         debug {
             isMinifyEnabled = false
+            // Sign debug with the same upgrade key so debug ↔ release APKs
+            // are install-compatible (no data wipe when switching).
+            signingConfig = signingConfigs.getByName("upgrade")
         }
     }
 

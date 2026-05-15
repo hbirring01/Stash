@@ -44,6 +44,9 @@ captures/
 # Keystore files
 *.jks
 *.keystore
+# ...except the committed upgrade keystore used to keep APK signatures stable
+# across releases (sideload-only; not a Play Store key).
+!app/upgrade.keystore
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild

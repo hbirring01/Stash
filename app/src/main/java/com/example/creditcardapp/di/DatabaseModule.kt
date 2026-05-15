@@ -48,7 +48,11 @@ object DatabaseModule {
 
         val builder = Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.DB_NAME)
             .openHelperFactory(factory)
-            .fallbackToDestructiveMigration()
+            // Preserve user data across upgrades. If a future schema change ships
+            // without a matching Migration, the app will crash rather than silently
+            // wipe the user's cards/transactions — at which point we add a real
+            // Migration object. Downgrades (rare) still fall back to destructive.
+            .fallbackToDestructiveMigrationOnDowngrade()
         if (BuildConfig.DEBUG) builder.addCallback(DebugSeed)
         return builder.build()
     }

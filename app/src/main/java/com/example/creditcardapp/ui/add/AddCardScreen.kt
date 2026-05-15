@@ -1,7 +1,9 @@
 package com.example.creditcardapp.ui.add
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +17,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,12 +29,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.creditcardapp.domain.model.CreditCard
+import com.example.creditcardapp.domain.model.RewardCategory
 import com.example.creditcardapp.ui.components.CreditCardTile
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,6 +108,27 @@ fun AddCardScreen(
                 keyboardType = KeyboardType.Decimal
             )
 
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Bonus categories",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                "Tap a multiplier for each category your card earns extra on. Anything you leave blank earns 1x.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            RewardCategory.entries.forEach { category ->
+                CategoryMultiplierRow(
+                    category = category,
+                    selected = state.rewards[category],
+                    onSelect = { mult -> viewModel.setMultiplier(category, mult) },
+                )
+            }
+
             state.error?.let { err ->
                 Spacer(Modifier.height(8.dp))
                 Text(err, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -142,4 +170,45 @@ private fun Field(
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     )
+}
+
+/** Common bonus multipliers offered on consumer credit cards. */
+private val MULTIPLIER_OPTIONS = listOf(2.0, 3.0, 4.0, 5.0)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryMultiplierRow(
+    category: RewardCategory,
+    selected: Double?,
+    onSelect: (Double) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = category.displayName,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            MULTIPLIER_OPTIONS.forEach { value ->
+                val isSelected = selected == value
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        // Tap selected chip again → clear (back to 1x).
+                        if (isSelected) onSelect(1.0) else onSelect(value)
+                    },
+                    label = { Text("${value.toInt()}x") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                )
+            }
+        }
+    }
 }

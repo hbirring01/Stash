@@ -27,15 +27,29 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Assemble debug APK
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Compute versionCode / versionName from tag
+        id: ver
+        run: |
+          TAG="${{ github.ref_name }}"          # e.g. v1.2.3
+          VERSION_NAME="${TAG#v}"               # 1.2.3
+          IFS='.' read -r MAJ MIN PAT <<< "$VERSION_NAME"
+          MAJ=${MAJ:-0}; MIN=${MIN:-0}; PAT=${PAT:-0}
+          VERSION_CODE=$(( MAJ * 10000 + MIN * 100 + PAT ))
+          echo "name=$VERSION_NAME"  >> "$GITHUB_OUTPUT"
+          echo "code=$VERSION_CODE"  >> "$GITHUB_OUTPUT"
+          echo "Resolved versionName=$VERSION_NAME versionCode=$VERSION_CODE"
+
+      - name: Assemble release APK
+        run: ./gradlew assembleRelease --no-daemon
         env:
           FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
+          RELEASE_VERSION_NAME: ${{ steps.ver.outputs.name }}
+          RELEASE_VERSION_CODE: ${{ steps.ver.outputs.code }}
 
       - name: Rename APK
         run: |
           mkdir -p artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk "artifacts/StashApp-${{ github.ref_name }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "artifacts/StashApp-${{ github.ref_name }}.apk"
 
       - name: Create GitHub Release and upload APK
         uses: softprops/action-gh-release@v2
