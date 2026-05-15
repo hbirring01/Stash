@@ -12,4 +12,5 @@ sealed class Destination(val route: String) {
     }
     data object RewardsMap : Destination("rewards/map")
     data object RewardsHub : Destination("rewards/hub")
+    data object Offers : Destination("offers")
 }

@@ -258,7 +258,21 @@ fun RewardsMapScreen(
                 state.selectedPlaceId?.let { id -> filtered.firstOrNull { it.place.id == id } }
                     ?: filtered.firstOrNull { it.bestCard != null }
             }
-            BestCardHero(recommendation = heroPick)
+            BestCardHero(
+                recommendation = heroPick,
+                onActivateOffer = { offer ->
+                    offer.deepLinkUri?.let { uri ->
+                        runCatching {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(uri),
+                            ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                            context.startActivity(intent)
+                        }
+                    }
+                },
+                onMarkOfferActivated = { offer -> viewModel.markOfferActivated(offer.id) },
+            )
 
             // Map area — height is driven by nested scroll. Scrolling the list
             // up fluidly collapses it; overscrolling down re-expands it.

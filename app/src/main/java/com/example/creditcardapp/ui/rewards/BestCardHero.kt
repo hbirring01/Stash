@@ -24,10 +24,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.RocketLaunch
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +42,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.creditcardapp.domain.model.Offer
 
 /**
  * AI-style "best card here" banner. Surfaces:
@@ -51,6 +55,8 @@ import androidx.compose.ui.unit.dp
 fun BestCardHero(
     recommendation: PlaceRecommendation?,
     modifier: Modifier = Modifier,
+    onActivateOffer: (Offer) -> Unit = {},
+    onMarkOfferActivated: (Offer) -> Unit = {},
 ) {
     if (recommendation == null) return
     val card = recommendation.bestCard ?: return
@@ -148,6 +154,58 @@ fun BestCardHero(
                         color = scheme.onPrimaryContainer,
                         trackColor = scheme.onPrimaryContainer.copy(alpha = 0.20f),
                     )
+                }
+            }
+
+            // Card-linked offer (Amex/Chase/Citi) banner. Two actions:
+            //  - "Open <issuer>" deep-links into the issuer's offers screen so
+            //    the user can tap Add to activate (we never auto-enroll).
+            //  - "Mark activated" updates local state so the offer stops
+            //    triggering notifications and is reflected in the offers list.
+            AnimatedVisibility(
+                visible = recommendation.activeOffer != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                val offer = recommendation.activeOffer ?: return@AnimatedVisibility
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp)
+                        .padding(bottom = 12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.LocalOffer,
+                            contentDescription = null,
+                            tint = scheme.onPrimaryContainer,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.size(6.dp))
+                        Text(
+                            text = "${offer.issuer} offer · ${offer.shortLabel()}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = scheme.onPrimaryContainer,
+                        )
+                    }
+                    offer.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = desc,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = scheme.onPrimaryContainer.copy(alpha = 0.80f),
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(onClick = { onActivateOffer(offer) }) {
+                            Text("Open ${offer.issuer}")
+                        }
+                        OutlinedButton(onClick = { onMarkOfferActivated(offer) }) {
+                            Text("Mark activated")
+                        }
+                    }
                 }
             }
         }

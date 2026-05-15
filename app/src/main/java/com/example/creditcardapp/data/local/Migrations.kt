@@ -51,3 +51,32 @@ val MIGRATION_4_5: Migration = object : Migration(4, 5) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_rotating_categories_cardId` ON `rotating_categories` (`cardId`)")
     }
 }
+
+/**
+ * v5 → v6 migration. Adds the `offers` table for card-linked offers
+ * (Amex Offers / Chase Offers / Citi Merchant Offers tracking).
+ */
+val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `offers` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`merchantPattern` TEXT NOT NULL, " +
+                "`merchantDisplay` TEXT NOT NULL, " +
+                "`issuer` TEXT NOT NULL, " +
+                "`cardLast4` TEXT, " +
+                "`rewardKind` TEXT NOT NULL, " +
+                "`rewardValue` REAL NOT NULL, " +
+                "`capDollars` REAL, " +
+                "`minSpendDollars` REAL NOT NULL DEFAULT 0, " +
+                "`expiresAt` INTEGER NOT NULL, " +
+                "`activatedAt` INTEGER, " +
+                "`source` TEXT NOT NULL DEFAULT 'CURATED', " +
+                "`deepLinkUri` TEXT, " +
+                "`description` TEXT)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_offers_merchantPattern` ON `offers` (`merchantPattern`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_offers_issuer` ON `offers` (`issuer`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_offers_expiresAt` ON `offers` (`expiresAt`)")
+    }
+}

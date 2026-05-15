@@ -46,6 +46,7 @@ fun AppNavGraph() {
                 onViewTransactions = { id -> navController.navigate(Destination.Transactions.build(id)) },
                 onOpenPlaidSetup = { navController.navigate(Destination.PlaidSetup.route) },
                 onOpenRewardsHub = { navController.navigate(Destination.RewardsHub.route) },
+                onOpenOffers = { navController.navigate(Destination.Offers.route) },
             )
         }
         composable(Destination.AddCard.route) {
@@ -56,6 +57,11 @@ fun AppNavGraph() {
         }
         composable(Destination.RewardsHub.route) {
             com.example.creditcardapp.ui.rewards.hub.RewardsHubScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Destination.Offers.route) {
+            com.example.creditcardapp.ui.offers.OffersScreen(
                 onBack = { navController.popBackStack() }
             )
         }

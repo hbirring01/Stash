@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.creditcardapp.data.location.GeocoderProvider
 import com.example.creditcardapp.data.location.LocationProvider
+import com.example.creditcardapp.data.notifications.OfferNotifier
 import com.example.creditcardapp.data.places.NearbyPlace
 import com.example.creditcardapp.data.places.PlacesRepository
 import com.example.creditcardapp.data.repository.CreditCardRepository
+import com.example.creditcardapp.data.repository.OffersRepository
 import com.example.creditcardapp.data.repository.RewardsRepository
 import com.example.creditcardapp.domain.model.CreditCard
+import com.example.creditcardapp.domain.model.Offer
 import com.example.creditcardapp.domain.model.RewardCategory
 import com.example.creditcardapp.domain.model.RotatingCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,6 +51,8 @@ data class PlaceRecommendation(
     val boostedByRotating: Boolean = false,
     /** Non-null when the AI is nudging the user toward an in-progress signup bonus. */
     val signupBonusProgress: Float? = null,
+    /** Non-null when a card-linked offer (Amex/Chase/Citi) applies to this place. */
+    val activeOffer: Offer? = null,
 )
 
 enum class PlacesSort { Distance, Multiplier }
@@ -101,6 +106,8 @@ class RewardsMapViewModel @Inject constructor(
     private val locationProvider: LocationProvider,
     private val geocoderProvider: GeocoderProvider,
     private val placesRepository: PlacesRepository,
+    private val offersRepository: OffersRepository,
+    private val offerNotifier: OfferNotifier,
     private val cardRepository: CreditCardRepository,
     private val rewardsRepository: RewardsRepository,
 ) : ViewModel() {
@@ -222,9 +229,11 @@ class RewardsMapViewModel @Inject constructor(
                 .getOrDefault(emptyList())
             val rotating = runCatching { rewardsRepository.observeActiveRotating().first() }
                 .getOrDefault(emptyList())
+            val offers = runCatching { offersRepository.observeUnactivated().first() }
+                .getOrDefault(emptyList())
             val result = placesRepository.searchByName(loc.latitude, loc.longitude, q)
             val places = result.getOrDefault(emptyList())
-            val recs = places.map { p -> recommend(p, cards, rotating) }
+            val recs = places.map { p -> recommend(p, cards, rotating, offers) }
             val failure = result.exceptionOrNull()
             _state.value = _state.value.copy(
                 places = recs,
@@ -262,9 +271,11 @@ class RewardsMapViewModel @Inject constructor(
                 .getOrDefault(emptyList())
             val rotating = runCatching { rewardsRepository.observeActiveRotating().first() }
                 .getOrDefault(emptyList())
+            val offers = runCatching { offersRepository.observeUnactivated().first() }
+                .getOrDefault(emptyList())
             val result = placesRepository.searchAnywhere(business, near)
             val places = result.getOrDefault(emptyList())
-            val recs = places.map { p -> recommend(p, cards, rotating) }
+            val recs = places.map { p -> recommend(p, cards, rotating, offers) }
             val failure = result.exceptionOrNull()
 
             // Center the map on the centroid of the returned results so the user
@@ -390,10 +401,12 @@ class RewardsMapViewModel @Inject constructor(
         val cards = runCatching { cardRepository.observeCards().first() }.getOrDefault(emptyList())
         val rotating = runCatching { rewardsRepository.observeActiveRotating().first() }
             .getOrDefault(emptyList())
+        val offers = runCatching { offersRepository.observeUnactivated().first() }
+            .getOrDefault(emptyList())
         val radius = _state.value.radiusMeters
         val nearbyResult = placesRepository.nearby(userLoc.latitude, userLoc.longitude, radius)
         val places = nearbyResult.getOrDefault(emptyList())
-        val recs = places.map { p -> recommend(p, cards, rotating) }
+        val recs = places.map { p -> recommend(p, cards, rotating, offers) }
         _state.value = _state.value.copy(
             location = userLoc,
             places = recs,
@@ -404,14 +417,34 @@ class RewardsMapViewModel @Inject constructor(
             selectedPlaceId = null,
             nameSearchMode = false,
         )
+        // Fire notifications for the top few places that match an unactivated offer.
+        // Keep it modest (max 2 per refresh) to avoid spamming the user.
+        recs.asSequence()
+            .filter { it.activeOffer != null }
+            .sortedBy { it.place.distanceMeters }
+            .take(2)
+            .forEach { rec ->
+                rec.activeOffer?.let { offer ->
+                    offerNotifier.notifyOfferNearby(offer, rec.place.name)
+                }
+            }
     }
 
     private fun recommend(
         place: NearbyPlace,
         cards: List<CreditCard>,
         rotating: List<RotatingCategory> = emptyList(),
+        offers: List<Offer> = emptyList(),
     ): PlaceRecommendation {
-        if (cards.isEmpty()) return PlaceRecommendation(place, null, 1.0, emptyList())
+        // Find a matching offer first — it can influence the card choice if it's
+        // tied to a specific card (cardLast4) that the user owns.
+        val matchingOffer: Offer? = offers.firstOrNull {
+            it.isActive() && !it.isActivated && it.matchesMerchant(place.name)
+        }
+        if (cards.isEmpty()) return PlaceRecommendation(
+            place = place, bestCard = null, multiplier = 1.0,
+            allOptions = emptyList(), activeOffer = matchingOffer,
+        )
 
         // Build options: each card's effective multiplier for this category is the
         // MAX of its baseline reward and any active rotating bonus the card has
@@ -453,19 +486,38 @@ class RewardsMapViewModel @Inject constructor(
             }
         }
 
+        // If the matching offer targets a specific cardLast4 the user owns,
+        // prefer that card so the activation actually pays off.
+        val offerLockedPick = matchingOffer?.cardLast4
+            ?.let { last4 -> options.firstOrNull { it.card.last4 == last4 } }
+        val finalPick = offerLockedPick ?: pick
+        val finalCashBack = finalPick.multiplier * finalPick.card.pointValueCents
+        val finalReason = if (matchingOffer != null) {
+            "${formatMultiplier(finalPick.multiplier)} on $categoryLabel · " +
+                "${matchingOffer.issuer} offer: ${matchingOffer.shortLabel()}"
+        } else reason
+
         return PlaceRecommendation(
             place = place,
-            bestCard = pick.card,
-            multiplier = pick.multiplier,
+            bestCard = finalPick.card,
+            multiplier = finalPick.multiplier,
             allOptions = options,
-            reason = reason,
-            cashBackCentsPerDollar = cashBack,
-            boostedByRotating = pick.boostedByRotating,
-            signupBonusProgress = if (nudge != null) pick.card.signupBonusProgress else null,
+            reason = finalReason,
+            cashBackCentsPerDollar = finalCashBack,
+            boostedByRotating = finalPick.boostedByRotating,
+            signupBonusProgress = if (nudge != null && offerLockedPick == null) finalPick.card.signupBonusProgress else null,
+            activeOffer = matchingOffer,
         )
     }
 
     private fun formatMultiplier(m: Double): String =
         if (m % 1.0 == 0.0) "${m.toInt()}×" else "%.1f×".format(m)
 
+    fun markOfferActivated(offerId: Long) {
+        viewModelScope.launch {
+            offersRepository.setActivated(offerId, activated = true)
+            // Refresh the visible recommendations so the offer banner clears.
+            _state.value.location?.let { applyLocation(it, isRefresh = true) }
+        }
+    }
 }

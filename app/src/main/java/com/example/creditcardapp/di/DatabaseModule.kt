@@ -9,6 +9,8 @@ import com.example.creditcardapp.data.local.AppDatabase
 import com.example.creditcardapp.data.local.CreditCardDao
 import com.example.creditcardapp.data.local.DatabaseKeyStore
 import com.example.creditcardapp.data.local.MIGRATION_4_5
+import com.example.creditcardapp.data.local.MIGRATION_5_6
+import com.example.creditcardapp.data.local.OfferDao
 import com.example.creditcardapp.data.local.RewardBalanceDao
 import com.example.creditcardapp.data.local.RotatingCategoryDao
 import com.example.creditcardapp.data.local.TransactionDao
@@ -54,7 +56,7 @@ object DatabaseModule {
             // Explicit migrations preserve user data across upgrades. Fall back to
             // destructive wipe only when no migration path is available (e.g. unknown
             // version coming from a much older install) or on downgrade.
-            .addMigrations(MIGRATION_4_5)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
         if (BuildConfig.DEBUG) builder.addCallback(DebugSeed)
@@ -72,6 +74,9 @@ object DatabaseModule {
 
     @Provides
     fun provideRotatingCategoryDao(db: AppDatabase): RotatingCategoryDao = db.rotatingCategoryDao()
+
+    @Provides
+    fun provideOfferDao(db: AppDatabase): OfferDao = db.offerDao()
 
     private object DebugSeed : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
@@ -127,6 +132,36 @@ object DatabaseModule {
             val q2Start = 1_743_465_600_000L // 2026-04-01 UTC
             val q2End = 1_751_414_399_000L   // 2026-06-30 23:59:59 UTC
             db.execSQL(rotSql, arrayOf(2L, "GAS", 5.0, q2Start, q2End, "Q2 2026 — Gas & Streaming"))
+
+            // Curated card-linked offers. These are sample/illustrative — real
+            // offers should be refreshed manually or via the user submitting them.
+            // Expires 60 days from now so the seed survives a few months of dev.
+            val plus30d = now + 30L * 24 * 60 * 60 * 1000
+            val offerSql = """
+                INSERT INTO offers
+                  (merchantPattern, merchantDisplay, issuer, cardLast4, rewardKind,
+                   rewardValue, capDollars, minSpendDollars, expiresAt, activatedAt,
+                   source, deepLinkUri, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent()
+            val chaseUri = "https://secure.chase.com/web/auth/dashboard#/dashboard/offers"
+            val amexUri = "https://global.americanexpress.com/offers/eligible"
+            val citiUri = "https://online.citi.com/US/ag/dashboard/offers"
+            val discoverUri = "https://card.discover.com/cardmembersvcs/deals"
+            // (pattern, display, issuer, cardLast4, kind, value, cap, minSpend, expiresAt, source, uri, desc)
+            val offers = listOf(
+                arrayOf("starbucks", "Starbucks", "Chase", null, "PERCENT", 10.0, 5.0, 0.0, plus30d, null, "CURATED", chaseUri, "10% back on Starbucks purchases"),
+                arrayOf("target", "Target", "Amex", null, "PERCENT", 8.0, 25.0, 0.0, plus30d, null, "CURATED", amexUri, "8% back at Target"),
+                arrayOf("walmart", "Walmart", "Citi", null, "PERCENT", 5.0, 15.0, 25.0, plus30d, null, "CURATED", citiUri, "5% back on $25+ at Walmart"),
+                arrayOf("whole foods", "Whole Foods", "Amex", null, "FLAT", 10.0, null, 50.0, plus30d, null, "CURATED", amexUri, "$10 back on $50+ at Whole Foods"),
+                arrayOf("home depot", "The Home Depot", "Chase", null, "PERCENT", 6.0, 30.0, 0.0, plus30d, null, "CURATED", chaseUri, "6% back at Home Depot"),
+                arrayOf("uber", "Uber", "Amex", null, "PERCENT", 12.0, 10.0, 0.0, plus30d, null, "CURATED", amexUri, "12% back on Uber rides"),
+                arrayOf("doordash", "DoorDash", "Chase", null, "PERCENT", 10.0, 8.0, 0.0, plus30d, null, "CURATED", chaseUri, "10% back on DoorDash"),
+                arrayOf("best buy", "Best Buy", "Citi", null, "FLAT", 20.0, null, 100.0, plus30d, null, "CURATED", citiUri, "$20 back on $100+ at Best Buy"),
+                arrayOf("cvs", "CVS Pharmacy", "Discover", null, "PERCENT", 5.0, 10.0, 0.0, plus30d, null, "CURATED", discoverUri, "5% back at CVS"),
+                arrayOf("shell", "Shell", "Chase", null, "POINTS_MULT", 3.0, null, 0.0, plus30d, null, "CURATED", chaseUri, "3× points at Shell gas stations"),
+            )
+            offers.forEach { db.execSQL(offerSql, it) }
         }
     }
 }
