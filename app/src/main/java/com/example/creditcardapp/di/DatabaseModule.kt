@@ -8,6 +8,7 @@ import com.example.creditcardapp.BuildConfig
 import com.example.creditcardapp.data.local.AppDatabase
 import com.example.creditcardapp.data.local.CreditCardDao
 import com.example.creditcardapp.data.local.DatabaseKeyStore
+import com.example.creditcardapp.data.local.MIGRATION_4_5
 import com.example.creditcardapp.data.local.RewardBalanceDao
 import com.example.creditcardapp.data.local.RotatingCategoryDao
 import com.example.creditcardapp.data.local.TransactionDao
@@ -50,9 +51,10 @@ object DatabaseModule {
 
         val builder = Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.DB_NAME)
             .openHelperFactory(factory)
-            // Personal-use dev app: we add columns/tables freely between minor versions.
-            // Both upgrades and downgrades wipe the DB rather than crash; Plaid re-link
-            // restores cards/transactions and the DebugSeed callback reseeds dev data.
+            // Explicit migrations preserve user data across upgrades. Fall back to
+            // destructive wipe only when no migration path is available (e.g. unknown
+            // version coming from a much older install) or on downgrade.
+            .addMigrations(MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
         if (BuildConfig.DEBUG) builder.addCallback(DebugSeed)
