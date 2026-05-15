@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>StashApp</title>
+  <meta name="description" content="StashApp — a personal credit-card tracker for Android.">
+  <style>
+    :root {
+      --bg: #0e1116;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --accent: #6ea8fe;
+      --card: #161b22;
+      --border: #30363d;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #ffffff;
+        --fg: #1f2328;
+        --muted: #57606a;
+        --accent: #0969da;
+        --card: #f6f8fa;
+        --border: #d0d7de;
+      }
+    }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    main { max-width: 680px; margin: 0 auto; padding: 64px 20px; }
+    h1 { font-size: 36px; margin: 0 0 6px; letter-spacing: -0.02em; }
+    .tagline { color: var(--muted); margin: 0 0 36px; }
+    ul.links { list-style: none; padding: 0; margin: 0; }
+    ul.links li { margin: 8px 0; }
+    ul.links a { display: inline-block; padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: 10px; background: var(--card); }
+    footer { margin-top: 56px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>StashApp</h1>
+  <p class="tagline">A personal credit-card tracker for Android — local-only, encrypted, no accounts.</p>
+  <ul class="links">
+    <li><a href="https://github.com/hbirring01/CreditCardApp">View source on GitHub</a></li>
+    <li><a href="./privacy.html">Privacy Policy</a></li>
+  </ul>
+  <footer>© 2026 Harman Birring — open source.</footer>
+</main>
+</body>
+</html>

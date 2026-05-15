@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>StashApp · Privacy Policy</title>
+  <meta name="description" content="Privacy policy for StashApp, a personal credit-card tracker for Android.">
+  <link rel="canonical" href="https://hbirring01.github.io/CreditCardApp/privacy.html">
+  <style>
+    :root {
+      --bg: #0e1116;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --accent: #6ea8fe;
+      --card: #161b22;
+      --border: #30363d;
+      --maxw: 760px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #ffffff;
+        --fg: #1f2328;
+        --muted: #57606a;
+        --accent: #0969da;
+        --card: #f6f8fa;
+        --border: #d0d7de;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    main { max-width: var(--maxw); margin: 0 auto; padding: 32px 20px 80px; }
+    header { padding: 28px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+    header h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.01em; }
+    header p { margin: 0; color: var(--muted); font-size: 14px; }
+    h2 { font-size: 20px; margin: 36px 0 10px; letter-spacing: -0.005em; }
+    h3 { font-size: 16px; margin: 22px 0 8px; }
+    p { margin: 10px 0; }
+    ul { margin: 8px 0 14px; padding-left: 22px; }
+    li { margin: 4px 0; }
+    code, kbd { background: var(--card); border: 1px solid var(--border);
+      padding: 1px 6px; border-radius: 6px; font-size: 0.9em; }
+    .tldr { background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 18px; margin: 18px 0 28px; }
+    .tldr strong { color: var(--accent); }
+    footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>StashApp — Privacy Policy</h1>
+    <p>Last updated: May 15, 2026</p>
+  </header>
+
+  <div class="tldr">
+    <strong>The short version.</strong> StashApp is a personal credit-card
+    tracker for Android. It runs entirely on your device. There is no StashApp
+    server, no account to sign up for, no analytics, no advertising, and no
+    sale of your data. The only times your phone talks to anyone else are when
+    you explicitly choose to use a feature that requires it (linking a bank,
+    finding nearby merchants, etc.), and those requests go straight from your
+    device to that provider.
+  </div>
+
+  <h2>1. Who runs StashApp</h2>
+  <p>
+    StashApp is a personal project maintained by an independent developer
+    (Harman Birring). It is distributed as an Android app and as open source on
+    GitHub. There is no company behind it, no employees, and no marketing
+    pipeline.
+  </p>
+  <p>
+    Source: <a href="https://github.com/hbirring01/CreditCardApp">github.com/hbirring01/CreditCardApp</a>.
+    Questions or deletion requests:
+    <a href="https://github.com/hbirring01/CreditCardApp/issues">open an issue</a>
+    on the repository.
+  </p>
+
+  <h2>2. What data StashApp handles</h2>
+  <p>The app processes the following categories of information only when you
+    enter them or enable the feature that creates them:</p>
+  <ul>
+    <li><strong>Card details</strong> — issuer / brand, last four digits of the
+      account number, cardholder name, balance, credit limit, expiry month and
+      year, and an optional nickname.</li>
+    <li><strong>Transactions</strong> — date, amount, merchant, category, and
+      an optional note, either entered manually or fetched from a linked
+      account (see section 4).</li>
+    <li><strong>Rewards data</strong> — per-card reward multipliers, point
+      balances, rotating quarterly bonuses, annual fee, signup-bonus progress.</li>
+    <li><strong>Preferences</strong> — your theme choice and other UI flags.</li>
+    <li><strong>Location</strong> — only while you are actively using the
+      <em>Rewards Map</em> screen, and only when you grant the runtime
+      permission. The coordinates are sent to the merchant lookup providers in
+      section 4 and are not retained by StashApp.</li>
+    <li><strong>Authentication state</strong> — a local PIN (hashed) and your
+      biometric registration with the Android system. The biometric data
+      itself never leaves the Android Keystore; StashApp only asks the system
+      whether you authenticated.</li>
+  </ul>
+
+  <h2>3. Where data lives</h2>
+  <p>
+    All app data is stored locally on your device in an encrypted SQLite
+    database (SQLCipher / AES-256). The database passphrase is generated on
+    first launch and stored in the Android Keystore. Secrets you supply in
+    Settings (Plaid client_id / secret, Foursquare API key) are kept in
+    <code>EncryptedSharedPreferences</code> with a master key in the Android
+    Keystore.
+  </p>
+  <p>
+    There is <strong>no remote backend operated by StashApp</strong>. Your data
+    is never uploaded to a StashApp server, because no such server exists.
+    Backups follow your device's normal Android backup rules; the encrypted
+    database is opaque without the on-device Keystore key.
+  </p>
+
+  <h2>4. Third-party services</h2>
+  <p>
+    Some optional features require talking to other services. Each request is
+    initiated by your device and goes directly to that provider. StashApp does
+    not proxy these calls.
+  </p>
+
+  <h3>4.1 Plaid (bank account linking)</h3>
+  <p>
+    When you tap <em>Connect a bank</em>, the Plaid Link SDK opens. Plaid
+    Inc. handles bank authentication and returns an access token to your
+    device. That token, plus the resulting account and transaction data, is
+    stored locally as described in section 3. Plaid's handling of your bank
+    credentials is governed by their own policy:
+    <a href="https://plaid.com/legal/#end-user-privacy-policy">plaid.com/legal</a>.
+    To disconnect, remove the linked Item from within StashApp; you may also
+    revoke access from <a href="https://my.plaid.com/">my.plaid.com</a>.
+  </p>
+
+  <h3>4.2 Foursquare Places (Rewards Map)</h3>
+  <p>
+    When you open the Rewards Map or run a business name search, your
+    approximate latitude and longitude and your query string are sent to the
+    Foursquare Places API for venue lookup. See
+    <a href="https://foursquare.com/legal/privacy">foursquare.com/legal/privacy</a>.
+  </p>
+
+  <h3>4.3 OpenStreetMap / Overpass (Rewards Map)</h3>
+  <p>
+    Map tiles and venue data may be fetched from the OpenStreetMap project and
+    the Overpass API. These requests include the area being viewed and
+    standard HTTP headers. See
+    <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy">OpenStreetMap's privacy policy</a>.
+  </p>
+
+  <h3>4.4 Android system services</h3>
+  <p>
+    Standard Android components (Fused Location Provider, biometric prompt,
+    file picker, etc.) are governed by Google's platform policies, not by
+    StashApp.
+  </p>
+
+  <h2>5. What StashApp does <em>not</em> do</h2>
+  <ul>
+    <li>No accounts, no sign-up, no email collection.</li>
+    <li>No advertising and no ad SDKs.</li>
+    <li>No analytics, no crash reporting, no telemetry of any kind.</li>
+    <li>No selling, renting, or sharing of personal data with third parties
+      for marketing purposes.</li>
+    <li>No tracking across apps or websites.</li>
+  </ul>
+
+  <h2>6. Permissions</h2>
+  <ul>
+    <li><strong>Biometric / Use Fingerprint</strong> — to unlock the app.</li>
+    <li><strong>Fine / Coarse Location</strong> — only while you use the
+      Rewards Map; never in the background.</li>
+    <li><strong>Internet</strong> — to reach Plaid, Foursquare, and the map
+      providers when you use those features.</li>
+    <li><strong>Post Notifications</strong> — only used for optional
+      statement / reward reminders if you enable them.</li>
+  </ul>
+
+  <h2>7. Children</h2>
+  <p>
+    StashApp is not directed at children under 13. It deals with credit-card
+    accounts that minors generally cannot hold. No knowing collection of data
+    from children occurs.
+  </p>
+
+  <h2>8. Your rights</h2>
+  <p>
+    Because StashApp stores everything on your device, you control all of it:
+  </p>
+  <ul>
+    <li><strong>Access:</strong> all data is visible within the app.</li>
+    <li><strong>Delete:</strong> remove individual items in the UI, clear
+      saved keys in Settings, or uninstall the app to wipe everything.</li>
+    <li><strong>Portability:</strong> exports (CSV, etc.) can be triggered
+      from within the app where supported.</li>
+  </ul>
+  <p>
+    For data that has flowed to a third-party provider (Plaid, Foursquare),
+    contact that provider directly to exercise your rights with them.
+  </p>
+
+  <h2>9. Security</h2>
+  <p>
+    StashApp encrypts the local database with SQLCipher (AES-256) and stores
+    third-party API keys with <code>EncryptedSharedPreferences</code> backed by
+    the Android Keystore. The app requires PIN and/or biometric authentication
+    to open. No software is bug-free; if you believe you've found a security
+    issue, please open a private security advisory on the GitHub repository.
+  </p>
+
+  <h2>10. Changes to this policy</h2>
+  <p>
+    Material changes will be reflected by updating the "Last updated" date at
+    the top of this page and, where appropriate, surfaced in the app's release
+    notes. The current version is always at
+    <a href="https://hbirring01.github.io/CreditCardApp/privacy.html">
+      hbirring01.github.io/CreditCardApp/privacy.html
+    </a>.
+  </p>
+
+  <h2>11. Contact</h2>
+  <p>
+    The best way to reach the maintainer is to open an issue on the project
+    repository:
+    <a href="https://github.com/hbirring01/CreditCardApp/issues">github.com/hbirring01/CreditCardApp/issues</a>.
+  </p>
+
+  <footer>
+    StashApp is open source under the project's repository license. This
+    privacy policy is also open source; pull requests welcome.
+  </footer>
+</main>
+</body>
+</html>
