@@ -6,6 +6,8 @@ import android.net.Uri
 import android.preference.PreferenceManager
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +34,6 @@ import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.LocationSearching
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -40,7 +41,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,6 +71,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -189,11 +190,28 @@ fun RewardsMapScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                // Swipe-right from anywhere on the screen → back. Threshold chosen
+                // generously so the system back-edge gesture still wins near the edge.
+                .pointerInput(onBack) {
+                    var totalDx = 0f
+                    var totalDy = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { totalDx = 0f; totalDy = 0f },
+                        onDragEnd = {
+                            if (totalDx > 180f && kotlin.math.abs(totalDy) < 120f) onBack()
+                        },
+                    ) { _, dragAmount ->
+                        totalDx += dragAmount
+                    }
+                }
         ) {
-            // Global business search (no device location tether). Type
-            // "Starbucks in Chicago" / "Best Buy near 90210" / "Apple @ NYC".
-            GlobalBusinessSearchBar(
-                onSearch = { viewModel.searchAnywhere(it) },
+            // One unified search bar handles everything: business names, locations,
+            // and "{business} in/near {place}" combinations. Routed through
+            // viewModel.unifiedSearch which picks the right backend.
+            UnifiedSearchBar(
+                currentLocationLabel = state.location?.label?.takeIf { state.location?.isManual == true },
+                inSearchMode = state.nameSearchMode,
+                onSearch = { viewModel.unifiedSearch(it) },
                 onClear = { viewModel.load() },
             )
 
@@ -204,7 +222,15 @@ fun RewardsMapScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(280.dp)
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        // Swipe up on the map to collapse it.
+                        .pointerInput(Unit) {
+                            var totalDy = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = { totalDy = 0f },
+                                onDragEnd = { if (totalDy < -80f) mapExpanded = false },
+                            ) { _, dragAmount -> totalDy += dragAmount }
+                        },
                     shape = RoundedCornerShape(28.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     tonalElevation = 1.dp,
@@ -291,7 +317,7 @@ fun RewardsMapScreen(
                 Spacer(Modifier.height(6.dp))
 
                 Text(
-                    text = "Tip: long-press the map to drop a custom pin · tap a pin to highlight it below.",
+                    text = "Tip: long-press the map to drop a custom pin · swipe up to hide.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 20.dp),
@@ -299,15 +325,6 @@ fun RewardsMapScreen(
             }
 
             Spacer(Modifier.height(6.dp))
-
-            ManualLocationField(
-                currentLabel = state.location?.label?.takeIf { state.location?.isManual == true },
-                onSearch = { viewModel.searchManualLocation(it) },
-                onUseAutomatic = { viewModel.load() },
-                showUseAutomatic = state.automaticFailed || state.location?.isManual == true,
-            )
-
-            Spacer(Modifier.height(8.dp))
 
             state.error?.let {
                 Text(
@@ -318,22 +335,14 @@ fun RewardsMapScreen(
                 )
             }
 
-            // Category filter chips
-            if (state.places.isNotEmpty() || state.nameSearchMode) {
-                BusinessNameFilter(
-                    value = state.nameFilter,
-                    onChange = { viewModel.setNameFilter(it) },
-                    onSubmit = { viewModel.searchBusinessByName(it) },
-                    onClear = { viewModel.searchBusinessByName("") },
-                    inSearchMode = state.nameSearchMode,
+            // Category filter chips (no extra search bars — the top unified bar
+            // handles all queries).
+            if (state.places.isNotEmpty()) {
+                CategoryFilterChips(
+                    available = state.availableCategories,
+                    selected = state.categoryFilter,
+                    onSelect = { viewModel.selectCategory(it) },
                 )
-                if (state.places.isNotEmpty()) {
-                    CategoryFilterChips(
-                        available = state.availableCategories,
-                        selected = state.categoryFilter,
-                        onSelect = { viewModel.selectCategory(it) },
-                    )
-                }
             }
 
             // Empty state
@@ -348,7 +357,15 @@ fun RewardsMapScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        // Swipe down on the results header to re-show the map.
+                        .pointerInput(Unit) {
+                            var totalDy = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = { totalDy = 0f },
+                                onDragEnd = { if (totalDy > 80f) mapExpanded = true },
+                            ) { _, dragAmount -> totalDy += dragAmount }
+                        },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val catFilter = state.categoryFilter
@@ -540,7 +557,9 @@ private fun OsmMap(
 // --------------------------- Filter chips ---------------------------
 
 @Composable
-private fun GlobalBusinessSearchBar(
+private fun UnifiedSearchBar(
+    currentLocationLabel: String?,
+    inSearchMode: Boolean,
     onSearch: (String) -> Unit,
     onClear: () -> Unit,
 ) {
@@ -554,16 +573,17 @@ private fun GlobalBusinessSearchBar(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         singleLine = true,
-        placeholder = { Text("Find any business (e.g. Mezeh in Ellicott City)") },
-        leadingIcon = { Icon(Icons.Outlined.TravelExplore, contentDescription = null) },
+        placeholder = { Text("Search businesses, ZIP, or \"Starbucks in Chicago\"") },
+        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
         trailingIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (query.isNotEmpty()) {
+                if (query.isNotEmpty() || inSearchMode || currentLocationLabel != null) {
                     IconButton(onClick = {
                         query = ""
+                        keyboard?.hide()
                         onClear()
                     }) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Clear")
+                        Icon(Icons.Outlined.Close, contentDescription = "Clear search")
                     }
                 }
                 IconButton(
@@ -574,7 +594,7 @@ private fun GlobalBusinessSearchBar(
                     enabled = canSearch,
                 ) {
                     Icon(
-                        Icons.Outlined.Search,
+                        Icons.Outlined.TravelExplore,
                         contentDescription = "Search",
                         tint = if (canSearch) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -584,72 +604,22 @@ private fun GlobalBusinessSearchBar(
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(
-            onSearch = {
-                keyboard?.hide()
-                onSearch(query)
-            },
-            onDone = {
-                keyboard?.hide()
-                onSearch(query)
-            },
-            onGo = {
-                keyboard?.hide()
-                onSearch(query)
-            },
+            onSearch = { keyboard?.hide(); onSearch(query) },
+            onDone = { keyboard?.hide(); onSearch(query) },
+            onGo = { keyboard?.hide(); onSearch(query) },
         ),
         shape = RoundedCornerShape(24.dp),
     )
+    val hint = when {
+        currentLocationLabel != null -> "Searching near $currentLocationLabel · clear to use my location"
+        else -> "Type a business name, ZIP, city, or \"{business} in {place}\""
+    }
     Text(
-        text = "Tip: include a location, e.g. \"Mezeh in Ellicott City\" or \"Best Buy near 90210\".",
+        text = hint,
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 24.dp),
     )
-}
-
-@Composable
-private fun BusinessNameFilter(
-    value: String,
-    onChange: (String) -> Unit,
-    onSubmit: (String) -> Unit,
-    onClear: () -> Unit,
-    inSearchMode: Boolean,
-) {
-    val keyboard = LocalSoftwareKeyboardController.current
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        singleLine = true,
-        placeholder = { Text("Search businesses (e.g. Starbucks)") },
-        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-        trailingIcon = {
-            if (value.isNotEmpty() || inSearchMode) {
-                IconButton(onClick = {
-                    onChange("")
-                    onClear()
-                }) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Clear")
-                }
-            }
-        },
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = {
-            keyboard?.hide()
-            onSubmit(value)
-        }),
-        shape = RoundedCornerShape(20.dp),
-    )
-    if (inSearchMode && value.isNotBlank()) {
-        Text(
-            text = "Showing nearest \"$value\" within ~30 mi. Clear to return to map area.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
-        )
-    }
 }
 
 @Composable
@@ -832,62 +802,6 @@ private fun EmptyStateBlock(radiusMeters: Int, onExpand: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
-    }
-}
-
-// --------------------------- Manual location field ---------------------------
-
-@Composable
-private fun ManualLocationField(
-    currentLabel: String?,
-    onSearch: (String) -> Unit,
-    onUseAutomatic: () -> Unit,
-    showUseAutomatic: Boolean,
-) {
-    var query by rememberSaveable { mutableStateOf("") }
-    val keyboard = LocalSoftwareKeyboardController.current
-
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                placeholder = { Text("City or ZIP") },
-                leadingIcon = { Icon(Icons.Outlined.LocationSearching, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {
-                    keyboard?.hide()
-                    onSearch(query)
-                }),
-                shape = RoundedCornerShape(20.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Button(
-                onClick = {
-                    keyboard?.hide()
-                    onSearch(query)
-                },
-                enabled = query.isNotBlank(),
-                shape = RoundedCornerShape(20.dp),
-            ) {
-                Icon(Icons.Outlined.Search, contentDescription = null)
-            }
-        }
-        if (currentLabel != null) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "Using manual location: $currentLabel",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (showUseAutomatic) {
-            TextButton(onClick = onUseAutomatic) {
-                Text("Use my current location instead")
-            }
-        }
     }
 }
 

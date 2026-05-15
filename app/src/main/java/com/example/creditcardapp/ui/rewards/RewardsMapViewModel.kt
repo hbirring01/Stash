@@ -275,6 +275,45 @@ class RewardsMapViewModel @Inject constructor(
         }
     }
 
+    /**
+     * One search bar to rule them all. Dispatches to the right backend based on
+     * the shape of [rawQuery]:
+     *  - Empty: reset to current/automatic location.
+     *  - Contains a separator ("in", "near", "@", ","): global business-in-place
+     *    search via [searchAnywhere].
+     *  - Pure ZIP / digits-only / looks-like-place-only (e.g. "Chicago", "90210"):
+     *    move the map there via [searchManualLocation].
+     *  - Anything else: business-name search near the current location via
+     *    [searchBusinessByName] (falls back to manual location if name search has
+     *    no anchor yet).
+     */
+    fun unifiedSearch(rawQuery: String) {
+        val raw = rawQuery.trim()
+        if (raw.isEmpty()) {
+            load()
+            return
+        }
+        // Anywhere search: explicit separator present.
+        val (business, near) = parseAnywhereQuery(raw)
+        if (business.isNotEmpty() && near.isNotEmpty()) {
+            searchAnywhere(raw)
+            return
+        }
+        // Pure location: 5-digit ZIP, or starts with a digit (e.g. "1600 Penn Ave").
+        val looksLikeZip = raw.matches(Regex("""\d{5}(-\d{4})?"""))
+        if (looksLikeZip) {
+            searchManualLocation(raw)
+            return
+        }
+        // Default: business-name search near current location. If we have no
+        // location anchor yet, treat the query as a place name instead.
+        if (_state.value.location == null) {
+            searchManualLocation(raw)
+        } else {
+            searchBusinessByName(raw)
+        }
+    }
+
     /** Split "{business} in/near/@ {place}" into (business, place). */
     private fun parseAnywhereQuery(raw: String): Pair<String, String> {
         // Order matters: try longer separators first.
