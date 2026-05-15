@@ -117,6 +117,7 @@ fun HomeScreen(
                     },
                 )
                 1 -> RewardsMapScreen(
+                    isActive = pagerState.currentPage == 1,
                     onBack = {
                         scope.launch { pagerState.animateScrollToPage(0) }
                     },

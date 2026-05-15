@@ -113,10 +113,18 @@ private const val SAMPLE_SPEND_DOLLARS = 50.0
 @Composable
 fun RewardsMapScreen(
     onBack: () -> Unit,
+    isActive: Boolean = true,
     viewModel: RewardsMapViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // Whenever this page becomes the visible tab in the pager, re-grab the
+    // user's current GPS location so a stale manual ZIP from earlier is replaced
+    // automatically. `load()` is a no-op if permission isn't granted.
+    LaunchedEffect(isActive) {
+        if (isActive) viewModel.load()
+    }
 
     // Configure osmdroid BEFORE any MapView is constructed.
     val osmReady = remember {

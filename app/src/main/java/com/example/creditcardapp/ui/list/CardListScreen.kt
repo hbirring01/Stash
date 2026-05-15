@@ -11,8 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -140,17 +138,10 @@ fun CardListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    val interaction = remember { MutableInteractionSource() }
                     Text(
                         "Wallet",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.combinedClickable(
-                            interactionSource = interaction,
-                            indication = null,
-                            onClick = {},
-                            onLongClick = onOpenPlaidSetup
-                        )
                     )
                 },
                 actions = {
