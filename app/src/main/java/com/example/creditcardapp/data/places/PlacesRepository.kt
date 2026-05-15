@@ -1,6 +1,6 @@
 package com.example.creditcardapp.data.places
 
-import com.example.creditcardapp.BuildConfig
+import com.example.creditcardapp.data.preferences.ApiKeyStore
 import com.example.creditcardapp.domain.model.RewardCategory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,6 +15,7 @@ import kotlin.math.sqrt
 class PlacesRepository @Inject constructor(
     private val api: OverpassApi,
     private val foursquare: FoursquareApi,
+    private val apiKeyStore: ApiKeyStore,
 ) {
 
     /**
@@ -43,7 +44,7 @@ class PlacesRepository @Inject constructor(
         }
 
         // Fallback: Foursquare. Only attempt when a key is configured.
-        val key = BuildConfig.FOURSQUARE_API_KEY
+        val key = apiKeyStore.effectiveFoursquareKey()
         if (key.isNotBlank()) {
             for (r in radii) {
                 val result = runCatching { fetchFoursquare(lat, lon, r, key) }
@@ -141,7 +142,7 @@ class PlacesRepository @Inject constructor(
         var lastError: Throwable? = null
 
         // Prefer Foursquare when configured \u2014 its search is name-aware and brand-aware.
-        val key = BuildConfig.FOURSQUARE_API_KEY
+        val key = apiKeyStore.effectiveFoursquareKey()
         if (key.isNotBlank()) {
             for (r in radii) {
                 val fsq = runCatching { fetchFoursquare(lat, lon, r, key, query) }
@@ -176,10 +177,10 @@ class PlacesRepository @Inject constructor(
         val near = nearQuery.trim()
         if (q.isEmpty() || near.isEmpty()) return@withContext Result.success(emptyList())
 
-        val key = BuildConfig.FOURSQUARE_API_KEY
+        val key = apiKeyStore.effectiveFoursquareKey()
         if (key.isBlank()) {
             return@withContext Result.failure(
-                IllegalStateException("Add FOURSQUARE_API_KEY to local.properties to enable global search.")
+                IllegalStateException("Add a Foursquare API key in Settings to enable global search.")
             )
         }
         runCatching {

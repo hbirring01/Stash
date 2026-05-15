@@ -5,6 +5,9 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,12 +40,18 @@ class PlaidCredentialsStore @Inject constructor(
         !prefs.getString(KEY_CLIENT_ID, null).isNullOrBlank() &&
             !prefs.getString(KEY_SECRET, null).isNullOrBlank()
 
+    private val _hasCredentialsFlow = MutableStateFlow(hasCredentials())
+    /** Observable mirror of [hasCredentials] for UI status badges. Never exposes
+     *  the underlying client_id or secret values. */
+    val hasCredentialsFlow: StateFlow<Boolean> = _hasCredentialsFlow.asStateFlow()
+
     suspend fun save(clientId: String, secret: String, env: String) = withContext(Dispatchers.IO) {
         prefs.edit()
             .putString(KEY_CLIENT_ID, clientId.trim())
             .putString(KEY_SECRET, secret.trim())
             .putString(KEY_ENV, env.trim().ifBlank { "sandbox" })
             .apply()
+        _hasCredentialsFlow.value = true
     }
 
     suspend fun clientId(): String? = withContext(Dispatchers.IO) {
@@ -63,6 +72,7 @@ class PlaidCredentialsStore @Inject constructor(
             .remove(KEY_SECRET)
             .remove(KEY_ENV)
             .apply()
+        _hasCredentialsFlow.value = false
     }
 
     private companion object {
