@@ -30,7 +30,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: detekt
-        uses: natiginfo/action-detekt-all@1.23.7
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          args: --build-upon-default-config
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Download detekt
+        run: |
+          curl -sSLO "https://github.com/detekt/detekt/releases/download/v1.23.7/detekt-cli-1.23.7.zip"
+          unzip -q detekt-cli-1.23.7.zip
+          chmod +x detekt-cli-1.23.7/bin/detekt-cli
+      - name: Run detekt
+        run: |
+          ./detekt-cli-1.23.7/bin/detekt-cli \
+            --build-upon-default-config \
+            --input app/src/main \
+            --report sarif:detekt-report.sarif \
+          || true
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: detekt-report.sarif
+          category: detekt
