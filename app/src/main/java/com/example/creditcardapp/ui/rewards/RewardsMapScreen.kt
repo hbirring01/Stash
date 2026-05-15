@@ -252,6 +252,14 @@ fun RewardsMapScreen(
                 onClear = { viewModel.load() },
             )
 
+            // AI-style "best card here" banner — surfaces the recommended card for
+            // the currently selected place, or the nearest place otherwise.
+            val heroPick = remember(filtered, state.selectedPlaceId) {
+                state.selectedPlaceId?.let { id -> filtered.firstOrNull { it.place.id == id } }
+                    ?: filtered.firstOrNull { it.bestCard != null }
+            }
+            BestCardHero(recommendation = heroPick)
+
             // Map area — height is driven by nested scroll. Scrolling the list
             // up fluidly collapses it; overscrolling down re-expands it.
             val mapHeightDp = with(density) { mapHeightPx.toDp() }

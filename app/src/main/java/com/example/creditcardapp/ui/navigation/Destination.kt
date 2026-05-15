@@ -11,4 +11,5 @@ sealed class Destination(val route: String) {
         fun build(cardId: Long) = "cards/$cardId/transactions"
     }
     data object RewardsMap : Destination("rewards/map")
+    data object RewardsHub : Destination("rewards/hub")
 }

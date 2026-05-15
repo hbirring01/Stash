@@ -31,6 +31,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.ViewAgenda
+import androidx.compose.material.icons.outlined.ViewCarousel
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -39,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -64,6 +68,7 @@ import com.example.creditcardapp.domain.model.CreditCard
 import com.example.creditcardapp.ui.components.CreditCardTile
 import com.example.creditcardapp.ui.components.EmptyCardsState
 import com.example.creditcardapp.ui.components.IndeterminateWave
+import com.example.creditcardapp.ui.components.WalletStackView
 import com.example.creditcardapp.ui.components.WaveProgress
 import com.example.creditcardapp.ui.format.asCurrency
 import com.example.creditcardapp.ui.format.expiry
@@ -89,6 +94,9 @@ fun CardListScreen(
     val snackbar = remember { SnackbarHostState() }
 
     var expandedId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var stackMode by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = expandedId != null) { expandedId = null }
 
     val listState = rememberLazyListState()
@@ -144,6 +152,20 @@ fun CardListScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = { searchOpen = !searchOpen; if (!searchOpen) searchQuery = "" }) {
+                        Icon(
+                            Icons.Outlined.Search,
+                            contentDescription = if (searchOpen) "Close search" else "Search cards",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    IconButton(onClick = { stackMode = !stackMode }) {
+                        Icon(
+                            if (stackMode) Icons.Outlined.ViewAgenda else Icons.Outlined.ViewCarousel,
+                            contentDescription = if (stackMode) "List view" else "Stack view",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                     IconButton(onClick = onOpenRewardsMap) {
                         Icon(
                             Icons.Outlined.Map,
@@ -187,6 +209,23 @@ fun CardListScreen(
                 IndeterminateWave(modifier = Modifier.padding(horizontal = 20.dp))
             }
 
+            AnimatedVisibility(
+                visible = searchOpen && cards.isNotEmpty(),
+                enter = fadeIn(tween(180)),
+                exit = fadeOut(tween(180))
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    singleLine = true,
+                    placeholder = { Text("Search by nickname, brand, or last 4") },
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
             if (cards.isEmpty()) {
                 EmptyCardsState(
                     onConnectBank = { viewModel.connectBank() },
@@ -195,42 +234,63 @@ fun CardListScreen(
                 return@Column
             }
 
+            val filteredCards = remember(cards, searchQuery) {
+                val q = searchQuery.trim()
+                if (q.isEmpty()) cards
+                else cards.filter { c ->
+                    (c.nickname?.contains(q, ignoreCase = true) == true) ||
+                        c.brand.contains(q, ignoreCase = true) ||
+                        c.last4.contains(q)
+                }
+            }
+
             PullToRefreshBox(
                 isRefreshing = busy,
                 onRefresh = { viewModel.refresh() },
                 modifier = Modifier.fillMaxSize()
             ) {
-                val visibleCards = remember(cards, expandedId) {
-                    if (expandedId == null) cards else cards.filter { it.id == expandedId }
+                val visibleCards = remember(filteredCards, expandedId) {
+                    if (expandedId == null) filteredCards else filteredCards.filter { it.id == expandedId }
                 }
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    items(visibleCards, key = { it.id }) { card ->
-                        val isExpanded = expandedId == card.id
-                        CardListRow(
-                            card = card,
-                            logoBase64 = logo,
-                            isExpanded = isExpanded,
-                            onClick = {
-                                expandedId = if (isExpanded) null else card.id
-                            },
-                            onViewTransactions = { onViewTransactions(card.id) },
-                            onDelete = {
-                                expandedId = null
-                                viewModel.deleteCard(card.id)
-                            },
-                            modifier = Modifier.animateItem(
-                                fadeInSpec = tween(220),
-                                placementSpec = spring(),
-                                fadeOutSpec = tween(220)
+                if (stackMode && expandedId == null && searchQuery.isBlank() && visibleCards.size > 1) {
+                    WalletStackView(
+                        cards = visibleCards,
+                        logoBase64 = logo,
+                        onCardTap = { card -> expandedId = card.id },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(visibleCards, key = { it.id }) { card ->
+                            val isExpanded = expandedId == card.id
+                            CardListRow(
+                                card = card,
+                                logoBase64 = logo,
+                                isExpanded = isExpanded,
+                                onClick = {
+                                    expandedId = if (isExpanded) null else card.id
+                                },
+                                onViewTransactions = { onViewTransactions(card.id) },
+                                onDelete = {
+                                    expandedId = null
+                                    viewModel.deleteCard(card.id)
+                                },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(220),
+                                    placementSpec = spring(),
+                                    fadeOutSpec = tween(220)
+                                )
                             )
-                        )
+                        }
+                        item { Spacer(modifier = Modifier.height(80.dp)) }
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
         }
@@ -255,8 +315,12 @@ private fun CardListRow(
         shadowElevation = if (isExpanded) 2.dp else 0.dp
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.clickable { onClick() }) {
-                CreditCardTile(card = card, logoBase64 = logoBase64)
+            Column {
+                CreditCardTile(
+                    card = card,
+                    logoBase64 = logoBase64,
+                    onClick = onClick,
+                )
                 Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Column {
                     card.nickname?.takeIf { it.isNotBlank() }?.let {

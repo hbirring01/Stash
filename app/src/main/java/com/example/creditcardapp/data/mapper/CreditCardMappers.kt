@@ -36,7 +36,13 @@ fun CreditCardEntity.toDomain(): CreditCard = CreditCard(
     nickname = nickname,
     sourceItemId = sourceItemId,
     sourceAccountId = sourceAccountId,
-    rewards = parseRewards(rewardsJson)
+    rewards = parseRewards(rewardsJson),
+    annualFee = annualFee,
+    pointValueCents = pointValueCents,
+    signupBonusRequiredSpend = signupBonusRequiredSpend,
+    signupBonusEarnedSpend = signupBonusEarnedSpend,
+    signupBonusValue = signupBonusValue,
+    signupBonusDeadline = signupBonusDeadline,
 )
 
 fun CreditCard.toEntity(): CreditCardEntity = CreditCardEntity(
@@ -51,7 +57,13 @@ fun CreditCard.toEntity(): CreditCardEntity = CreditCardEntity(
     nickname = nickname,
     sourceItemId = sourceItemId,
     sourceAccountId = sourceAccountId,
-    rewardsJson = encodeRewards(rewards)
+    rewardsJson = encodeRewards(rewards),
+    annualFee = annualFee,
+    pointValueCents = pointValueCents,
+    signupBonusRequiredSpend = signupBonusRequiredSpend,
+    signupBonusEarnedSpend = signupBonusEarnedSpend,
+    signupBonusValue = signupBonusValue,
+    signupBonusDeadline = signupBonusDeadline,
 )
 
 fun CreditCardDto.toEntity(): CreditCardEntity = CreditCardEntity(

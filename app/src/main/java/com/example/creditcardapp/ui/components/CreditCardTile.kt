@@ -2,8 +2,12 @@ package com.example.creditcardapp.ui.components
 
 import android.graphics.BitmapFactory
 import android.util.Base64
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,13 +23,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,30 +58,148 @@ private fun paletteFor(brand: String): CardPalette {
     }
 }
 
+/**
+ * The visual credit-card "tile". Supports:
+ *   - **Reward badges** (top earning categories inline at the bottom).
+ *   - **Flip animation**: tapping flips Y-axis to reveal the back (showing the
+ *     rewards summary). Haptic feedback fires on every flip.
+ *   - **Subtle parallax**: while pressed the card tilts a few degrees and
+ *     scales down slightly for a tactile, glossy feel.
+ *
+ * Flip state is internal and survives recompositions via [rememberSaveable].
+ * Pass [enableFlip] = false to keep the tile static (e.g. the read-only preview
+ * inside [com.example.creditcardapp.ui.add.AddCardScreen]).
+ */
 @Composable
 fun CreditCardTile(
     card: CreditCard,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
-    logoBase64: String? = null
+    logoBase64: String? = null,
+    enableFlip: Boolean = true,
+    showBadges: Boolean = true,
+    /**
+     * Optional click handler. When provided, a single tap on the tile invokes
+     * this lambda (used in the wallet list to expand the card's detail panel).
+     * A *long-press* always toggles the flip regardless.
+     */
+    onClick: (() -> Unit)? = null,
 ) {
     val palette = paletteFor(card.brand)
     val shape = RoundedCornerShape(22.dp)
     val logoBitmap = remember(logoBase64) {
         logoBase64?.takeIf { it.isNotBlank() }?.let { decodeBase64Image(it) }
     }
+    val haptics = LocalHapticFeedback.current
+
+    var flipped by rememberSaveable(card.id) { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (flipped) 180f else 0f,
+        animationSpec = tween(durationMillis = 520),
+        label = "card-flip",
+    )
+
+    var pressTiltX by remember { mutableFloatStateOf(0f) }
+    var pressTiltY by remember { mutableFloatStateOf(0f) }
+    var pressed by remember { mutableStateOf(false) }
+    val tiltX by animateFloatAsState(
+        targetValue = if (pressed) pressTiltX else 0f,
+        animationSpec = spring(),
+        label = "tiltX",
+    )
+    val tiltY by animateFloatAsState(
+        targetValue = if (pressed) pressTiltY else 0f,
+        animationSpec = spring(),
+        label = "tiltY",
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.985f else 1f,
+        animationSpec = spring(),
+        label = "scale",
+    )
+
+    // (Haptic fires inside the long-press handler — not on first composition.)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(if (compact) 2.2f else 1.6f)
+            .graphicsLayer {
+                rotationY = rotation + tiltY
+                rotationX = tiltX
+                scaleX = scale
+                scaleY = scale
+                cameraDistance = 14f * density
+            }
+            .let { base ->
+                if (!enableFlip) base
+                else base.pointerInput(card.id, onClick) {
+                    detectTapGestures(
+                        onPress = { offset ->
+                            pressed = true
+                            pressTiltY = ((offset.x / size.width) - 0.5f) * 6f
+                            pressTiltX = -((offset.y / size.height) - 0.5f) * 4f
+                            tryAwaitRelease()
+                            pressed = false
+                        },
+                        // Tap → parent click (e.g. expand details in the wallet);
+                        // long-press → flip the card to view rewards on the back.
+                        onTap = if (onClick != null) {
+                            { onClick() }
+                        } else {
+                            { flipped = !flipped }
+                        },
+                        onLongPress = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            flipped = !flipped
+                        },
+                    )
+                }
+            },
+    ) {
+        val frontVisible = rotation <= 90f
+        if (frontVisible) {
+            CardFront(
+                card = card,
+                palette = palette,
+                shape = shape,
+                logoBitmap = logoBitmap,
+                compact = compact,
+                showBadges = showBadges,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            CardBack(
+                card = card,
+                palette = palette,
+                shape = shape,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { rotationY = 180f },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CardFront(
+    card: CreditCard,
+    palette: CardPalette,
+    shape: RoundedCornerShape,
+    logoBitmap: androidx.compose.ui.graphics.ImageBitmap?,
+    compact: Boolean,
+    showBadges: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
             .clip(shape)
             .background(Brush.linearGradient(listOf(palette.from, palette.to)))
-            .padding(20.dp)
+            .padding(20.dp),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 if (logoBitmap != null) {
@@ -78,12 +209,12 @@ fun CreditCardTile(
                             .size(width = 56.dp, height = 24.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(palette.onCard.copy(alpha = 0.92f))
-                            .padding(3.dp)
+                            .padding(3.dp),
                     ) {
                         Image(
                             bitmap = logoBitmap,
                             contentDescription = null,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
                 } else {
@@ -91,12 +222,12 @@ fun CreditCardTile(
                         text = card.brand.uppercase(),
                         color = palette.onCard.copy(alpha = 0.85f),
                         style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.align(Alignment.CenterStart)
+                        modifier = Modifier.align(Alignment.CenterStart),
                     )
                 }
                 ChipMark(
                     onCard = palette.onCard,
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier.align(Alignment.CenterEnd),
                 )
             }
 
@@ -105,43 +236,118 @@ fun CreditCardTile(
                 color = palette.onCard,
                 fontWeight = FontWeight.Medium,
                 fontSize = if (compact) 16.sp else 20.sp,
-                letterSpacing = 2.sp
+                letterSpacing = 2.sp,
             )
 
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.align(Alignment.CenterStart)) {
-                    Text(
-                        text = "CARDHOLDER",
-                        color = palette.onCard.copy(alpha = 0.55f),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontSize = 9.sp
-                    )
-                    Text(
-                        text = card.cardholderName.uppercase(),
-                        color = palette.onCard,
-                        style = MaterialTheme.typography.titleMedium
+            Column {
+                if (showBadges) {
+                    RewardBadges(
+                        card = card,
+                        onSurface = palette.onCard,
+                        modifier = Modifier.padding(bottom = 10.dp),
                     )
                 }
-                Column(
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = "EXPIRES",
-                        color = palette.onCard.copy(alpha = 0.55f),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontSize = 9.sp
-                    )
-                    Text(
-                        text = expiry(card.expiryMonth, card.expiryYear),
-                        color = palette.onCard,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.align(Alignment.CenterStart)) {
+                        Text(
+                            text = "CARDHOLDER",
+                            color = palette.onCard.copy(alpha = 0.55f),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontSize = 9.sp,
+                        )
+                        Text(
+                            text = card.cardholderName.uppercase().ifBlank { card.nickname?.uppercase() ?: "" },
+                            color = palette.onCard,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        horizontalAlignment = Alignment.End,
+                    ) {
+                        Text(
+                            text = "EXPIRES",
+                            color = palette.onCard.copy(alpha = 0.55f),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontSize = 9.sp,
+                        )
+                        Text(
+                            text = expiry(card.expiryMonth, card.expiryYear),
+                            color = palette.onCard,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun CardBack(
+    card: CreditCard,
+    palette: CardPalette,
+    shape: RoundedCornerShape,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(palette.to, palette.from)))
+            .padding(20.dp),
+    ) {
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(34.dp)
+                .padding(top = 8.dp)
+                .background(Color.Black.copy(alpha = 0.6f))
+                .align(Alignment.TopCenter),
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 60.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = card.nickname?.takeIf { it.isNotBlank() } ?: card.brand,
+                color = palette.onCard,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "REWARDS",
+                color = palette.onCard.copy(alpha = 0.55f),
+                style = MaterialTheme.typography.labelMedium,
+                fontSize = 9.sp,
+            )
+            if (card.rewards.isEmpty()) {
+                Text(
+                    text = "1× on everything",
+                    color = palette.onCard,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                card.rewards
+                    .toList()
+                    .sortedByDescending { it.second }
+                    .take(4)
+                    .forEach { (category, mult) ->
+                        Text(
+                            text = "${formatMult(mult)}× ${category.displayName}",
+                            color = palette.onCard,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+            }
+        }
+    }
+}
+
+private fun formatMult(value: Double): String =
+    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
 
 private fun decodeBase64Image(base64: String): androidx.compose.ui.graphics.ImageBitmap? = runCatching {
     val cleaned = base64.substringAfter(",")
@@ -156,20 +362,20 @@ private fun ChipMark(onCard: Color, modifier: Modifier = Modifier) {
         modifier = modifier
             .size(width = 36.dp, height = 26.dp)
             .clip(chipShape)
-            .background(onCard.copy(alpha = 0.18f))
+            .background(onCard.copy(alpha = 0.18f)),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(5.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             repeat(3) {
                 Spacer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(2.dp)
-                        .background(onCard.copy(alpha = 0.35f))
+                        .background(onCard.copy(alpha = 0.35f)),
                 )
             }
         }
@@ -178,7 +384,7 @@ private fun ChipMark(onCard: Color, modifier: Modifier = Modifier) {
                 .align(Alignment.Center)
                 .width(2.dp)
                 .fillMaxSize()
-                .background(onCard.copy(alpha = 0.25f))
+                .background(onCard.copy(alpha = 0.25f)),
         )
     }
 }

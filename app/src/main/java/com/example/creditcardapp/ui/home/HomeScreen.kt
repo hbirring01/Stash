@@ -69,6 +69,7 @@ fun HomeScreen(
     onAddCard: () -> Unit,
     onViewTransactions: (Long) -> Unit,
     onOpenPlaidSetup: () -> Unit,
+    onOpenRewardsHub: () -> Unit,
 ) {
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { HomeTabs.size })
     val scope = rememberCoroutineScope()
@@ -126,6 +127,7 @@ fun HomeScreen(
                 )
                 2 -> SettingsScreen(
                     onOpenPlaidSetup = onOpenPlaidSetup,
+                    onOpenRewardsHub = onOpenRewardsHub,
                 )
             }
         }

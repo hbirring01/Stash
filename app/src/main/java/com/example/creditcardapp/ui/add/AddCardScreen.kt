@@ -80,7 +80,9 @@ fun AddCardScreen(
                     expiryYear = 0,
                     balance = state.balance.toDoubleOrNull() ?: 0.0,
                     creditLimit = state.creditLimit.toDoubleOrNull() ?: 0.0
-                )
+                ),
+                enableFlip = false,
+                showBadges = false,
             )
             Spacer(Modifier.height(24.dp))
 
