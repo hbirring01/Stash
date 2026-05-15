@@ -16,11 +16,13 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
-## What's new in v1.3.x
+## What's new in v1.4.0
 
-- 🤖 **AI Best-Card hero** on the map — picks the optimal card for the focused place using effective multiplier (base vs. quarterly rotating bonus), then breaks ties using sign-up bonus progress. Shows a one-line reason and the cash-back equivalent for a sample spend.
-- 🔐 **Write-only API key management** in Settings — paste a Foursquare or Plaid key once and it's stored in `EncryptedSharedPreferences` backed by the Android Keystore. The UI only shows "Set · tap to replace or remove" — the saved value is never read back into Compose state.
-- 🛟 **Safe upgrade path** — added Room `Migration(4 → 5)` so v1.2.x users upgrading to v1.3.x keep their data instead of hitting the post-biometric crash.
+- 🎯 **Card-linked offers tracker** — surfaces active issuer offers (Amex, Chase, etc.) you can manually add, see your savings progress on, and one-tap deep-link into the issuer app to activate.
+- 🛎️ **Proximity notifications** — when you walk into a place that matches one of your unactivated offers, you get a notification with a tap-through to activate. Works both in the foreground (map open) and **in the background via system geofences** — fully opt-in with a clear two-step location permission flow.
+- 🔁 **Boot recovery** — geofences are automatically re-installed after device reboot or app upgrade via a `BroadcastReceiver` + `HiltWorker`, so background offer alerts survive power cycles without needing you to reopen the app.
+- 🤖 **AI Best-Card hero** on the map (v1.3) — picks the optimal card for the focused place using effective multiplier (base vs. quarterly rotating bonus), then breaks ties using sign-up bonus progress.
+- 🔐 **Write-only API key management** in Settings (v1.3) — keys stored in `EncryptedSharedPreferences` backed by the Android Keystore.
 - 📄 **Public privacy policy** at [hbirring01.github.io/CreditCardApp/privacy.html](https://hbirring01.github.io/CreditCardApp/privacy.html) — required for Plaid production access.
 
 ## Features
