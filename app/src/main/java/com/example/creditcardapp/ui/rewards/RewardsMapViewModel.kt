@@ -7,8 +7,10 @@ import com.example.creditcardapp.data.location.LocationProvider
 import com.example.creditcardapp.data.places.NearbyPlace
 import com.example.creditcardapp.data.places.PlacesRepository
 import com.example.creditcardapp.data.repository.CreditCardRepository
+import com.example.creditcardapp.data.repository.RewardsRepository
 import com.example.creditcardapp.domain.model.CreditCard
 import com.example.creditcardapp.domain.model.RewardCategory
+import com.example.creditcardapp.domain.model.RotatingCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,8 @@ data class UserLocation(
 data class CardOption(
     val card: CreditCard,
     val multiplier: Double,
+    /** True if [multiplier] was boosted by an active rotating bonus. */
+    val boostedByRotating: Boolean = false,
 )
 
 data class PlaceRecommendation(
@@ -36,6 +40,14 @@ data class PlaceRecommendation(
     val multiplier: Double,
     /** All known cards sorted by multiplier for this place, best first. */
     val allOptions: List<CardOption> = emptyList(),
+    /** Human-readable explanation: why is this the AI's pick? */
+    val reason: String = "",
+    /** Estimated cash value of $1 spent on the best card, in cents. */
+    val cashBackCentsPerDollar: Double = 0.0,
+    /** True when the recommended card got a boost from an active rotating bonus. */
+    val boostedByRotating: Boolean = false,
+    /** Non-null when the AI is nudging the user toward an in-progress signup bonus. */
+    val signupBonusProgress: Float? = null,
 )
 
 enum class PlacesSort { Distance, Multiplier }
@@ -90,6 +102,7 @@ class RewardsMapViewModel @Inject constructor(
     private val geocoderProvider: GeocoderProvider,
     private val placesRepository: PlacesRepository,
     private val cardRepository: CreditCardRepository,
+    private val rewardsRepository: RewardsRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RewardsMapUiState())
@@ -207,9 +220,11 @@ class RewardsMapViewModel @Inject constructor(
             _state.value = _state.value.copy(loading = true, error = null, nameFilter = q)
             val cards = runCatching { cardRepository.observeCards().first() }
                 .getOrDefault(emptyList())
+            val rotating = runCatching { rewardsRepository.observeActiveRotating().first() }
+                .getOrDefault(emptyList())
             val result = placesRepository.searchByName(loc.latitude, loc.longitude, q)
             val places = result.getOrDefault(emptyList())
-            val recs = places.map { p -> recommend(p, cards) }
+            val recs = places.map { p -> recommend(p, cards, rotating) }
             val failure = result.exceptionOrNull()
             _state.value = _state.value.copy(
                 places = recs,
@@ -245,9 +260,11 @@ class RewardsMapViewModel @Inject constructor(
             _state.value = _state.value.copy(loading = true, error = null)
             val cards = runCatching { cardRepository.observeCards().first() }
                 .getOrDefault(emptyList())
+            val rotating = runCatching { rewardsRepository.observeActiveRotating().first() }
+                .getOrDefault(emptyList())
             val result = placesRepository.searchAnywhere(business, near)
             val places = result.getOrDefault(emptyList())
-            val recs = places.map { p -> recommend(p, cards) }
+            val recs = places.map { p -> recommend(p, cards, rotating) }
             val failure = result.exceptionOrNull()
 
             // Center the map on the centroid of the returned results so the user
@@ -371,10 +388,12 @@ class RewardsMapViewModel @Inject constructor(
 
     private suspend fun applyLocation(userLoc: UserLocation, isRefresh: Boolean = false) {
         val cards = runCatching { cardRepository.observeCards().first() }.getOrDefault(emptyList())
+        val rotating = runCatching { rewardsRepository.observeActiveRotating().first() }
+            .getOrDefault(emptyList())
         val radius = _state.value.radiusMeters
         val nearbyResult = placesRepository.nearby(userLoc.latitude, userLoc.longitude, radius)
         val places = nearbyResult.getOrDefault(emptyList())
-        val recs = places.map { p -> recommend(p, cards) }
+        val recs = places.map { p -> recommend(p, cards, rotating) }
         _state.value = _state.value.copy(
             location = userLoc,
             places = recs,
@@ -387,13 +406,66 @@ class RewardsMapViewModel @Inject constructor(
         )
     }
 
-    private fun recommend(place: NearbyPlace, cards: List<CreditCard>): PlaceRecommendation {
+    private fun recommend(
+        place: NearbyPlace,
+        cards: List<CreditCard>,
+        rotating: List<RotatingCategory> = emptyList(),
+    ): PlaceRecommendation {
         if (cards.isEmpty()) return PlaceRecommendation(place, null, 1.0, emptyList())
-        val options = cards
-            .map { CardOption(it, it.multiplierFor(place.category)) }
-            .sortedByDescending { it.multiplier }
-        val best = options.first()
-        return PlaceRecommendation(place, best.card, best.multiplier, options)
+
+        // Build options: each card's effective multiplier for this category is the
+        // MAX of its baseline reward and any active rotating bonus the card has
+        // for the same category. This is what surfaces "5x dining via Q2 promo"
+        // even when the baseline only pays 1x.
+        val now = System.currentTimeMillis()
+        val activeByCard: Map<Long, List<RotatingCategory>> =
+            rotating.filter { it.isActive(now) && it.category == place.category }
+                .groupBy { it.cardId }
+
+        val options = cards.map { c ->
+            val base = c.multiplierFor(place.category)
+            val rotMult = activeByCard[c.id]?.maxOfOrNull { it.multiplier } ?: 0.0
+            val eff = maxOf(base, rotMult)
+            CardOption(card = c, multiplier = eff, boostedByRotating = rotMult > base)
+        }.sortedByDescending { it.multiplier }
+
+        val top = options.first()
+        // Signup-bonus tiebreaker: if another card is within 1x of the top pick
+        // AND has an unmet signup bonus, prefer it to help the user hit MSR.
+        val nudge = options
+            .firstOrNull { it != top && it.card.hasActiveSignupBonus && top.multiplier - it.multiplier <= 1.0 }
+        val pick = nudge ?: top
+        val rotBonus = activeByCard[pick.card.id]?.maxByOrNull { it.multiplier }
+        val cashBack = pick.multiplier * pick.card.pointValueCents
+
+        val categoryLabel = place.category.displayName.lowercase()
+        val reason = buildString {
+            append(formatMultiplier(pick.multiplier))
+            append(" on ")
+            append(categoryLabel)
+            when {
+                pick.boostedByRotating && rotBonus?.label?.isNotBlank() == true ->
+                    append(" · ").append(rotBonus.label)
+                pick.boostedByRotating ->
+                    append(" · active quarterly bonus")
+                nudge != null ->
+                    append(" · closes signup bonus gap")
+            }
+        }
+
+        return PlaceRecommendation(
+            place = place,
+            bestCard = pick.card,
+            multiplier = pick.multiplier,
+            allOptions = options,
+            reason = reason,
+            cashBackCentsPerDollar = cashBack,
+            boostedByRotating = pick.boostedByRotating,
+            signupBonusProgress = if (nudge != null) pick.card.signupBonusProgress else null,
+        )
     }
+
+    private fun formatMultiplier(m: Double): String =
+        if (m % 1.0 == 0.0) "${m.toInt()}×" else "%.1f×".format(m)
 
 }
