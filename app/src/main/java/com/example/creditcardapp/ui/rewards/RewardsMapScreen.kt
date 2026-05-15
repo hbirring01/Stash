@@ -5,8 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.preference.PreferenceManager
 import android.provider.Settings
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +62,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,9 +70,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -143,14 +148,52 @@ fun RewardsMapScreen(
         if (idx >= 0) listState.animateScrollToItem(idx)
     }
 
-    // Collapse the map once businesses are loaded so the list gets full screen.
-    // User can re-expand via the toggle in the results header.
-    var mapExpanded by rememberSaveable { mutableStateOf(true) }
+    // Collapsing map: height shrinks fluidly as the user scrolls the list up,
+    // and grows back as they overscroll downward. No buttons — the map behaves
+    // like a scroll-coupled collapsing header.
+    val density = LocalDensity.current
+    val maxMapPx = with(density) { 280.dp.toPx() }
+    var mapHeightPx by rememberSaveable { mutableFloatStateOf(maxMapPx) }
+    // Animate-to-collapse the first time results arrive, so the list gets the
+    // full screen. The user can drag the map back by overscrolling down.
     LaunchedEffect(filtered.isNotEmpty()) {
-        if (filtered.isNotEmpty()) mapExpanded = false
+        if (filtered.isNotEmpty() && mapHeightPx > 0f) {
+            animate(initialValue = mapHeightPx, targetValue = 0f) { v, _ -> mapHeightPx = v }
+        }
     }
-    // Re-tapping a marker on the map needs the map visible; selecting from list
-    // doesn't, so we leave the user in control after the initial collapse.
+    val nestedScrollConnection = remember(maxMapPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val dy = available.y
+                val current = mapHeightPx
+                // Finger dragging up → shrink the map before the list scrolls.
+                if (dy < 0f && current > 0f) {
+                    val newH = (current + dy).coerceAtLeast(0f)
+                    val consumed = newH - current
+                    mapHeightPx = newH
+                    return Offset(0f, consumed)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                val dy = available.y
+                val current = mapHeightPx
+                // List is at top and the user keeps pulling down → reveal map.
+                if (dy > 0f && current < maxMapPx) {
+                    val newH = (current + dy).coerceAtMost(maxMapPx)
+                    val consumedY = newH - current
+                    mapHeightPx = newH
+                    return Offset(0f, consumedY)
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -189,6 +232,7 @@ fun RewardsMapScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .nestedScroll(nestedScrollConnection)
         ) {
             // One unified search bar handles everything: business names, locations,
             // and "{business} in/near {place}" combinations. Routed through
@@ -200,22 +244,17 @@ fun RewardsMapScreen(
                 onClear = { viewModel.load() },
             )
 
-            // Map area — collapsible. Hidden by default once results load so the
-            // business list can use the full screen.
-            if (mapExpanded) {
+            // Map area — height is driven by nested scroll. Scrolling the list
+            // up fluidly collapses it; overscrolling down re-expands it.
+            val mapHeightDp = with(density) { mapHeightPx.toDp() }
+            val mapVisible = mapHeightPx > 0.5f
+            if (mapVisible) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(280.dp)
+                        .height(mapHeightDp)
                         .padding(horizontal = 16.dp)
-                        // Swipe up on the map to collapse it.
-                        .pointerInput(Unit) {
-                            var totalDy = 0f
-                            detectVerticalDragGestures(
-                                onDragStart = { totalDy = 0f },
-                                onDragEnd = { if (totalDy < -80f) mapExpanded = false },
-                            ) { _, dragAmount -> totalDy += dragAmount }
-                        },
+                        .clip(RoundedCornerShape(28.dp)),
                     shape = RoundedCornerShape(28.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     tonalElevation = 1.dp,
@@ -298,11 +337,11 @@ fun RewardsMapScreen(
                 }
             }
 
-            if (mapExpanded) {
+            if (mapHeightPx > maxMapPx * 0.5f) {
                 Spacer(Modifier.height(6.dp))
 
                 Text(
-                    text = "Tip: long-press the map to drop a custom pin · swipe up to hide.",
+                    text = "Tip: long-press the map to drop a custom pin · scroll the list to hide.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 20.dp),
@@ -342,15 +381,7 @@ fun RewardsMapScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                        // Swipe down on the results header to re-show the map.
-                        .pointerInput(Unit) {
-                            var totalDy = 0f
-                            detectVerticalDragGestures(
-                                onDragStart = { totalDy = 0f },
-                                onDragEnd = { if (totalDy > 80f) mapExpanded = true },
-                            ) { _, dragAmount -> totalDy += dragAmount }
-                        },
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val catFilter = state.categoryFilter
@@ -366,12 +397,6 @@ fun RewardsMapScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    IconButton(onClick = { mapExpanded = !mapExpanded }) {
-                        Icon(
-                            imageVector = if (mapExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.Map,
-                            contentDescription = if (mapExpanded) "Hide map" else "Show map",
-                        )
-                    }
                 }
             }
 
