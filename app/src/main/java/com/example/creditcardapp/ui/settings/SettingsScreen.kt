@@ -1,5 +1,6 @@
 package com.example.creditcardapp.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -38,12 +39,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.creditcardapp.data.preferences.ThemeMode
 import com.example.creditcardapp.ui.AppViewModel
+import com.example.creditcardapp.ui.list.CardListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onOpenPlaidSetup: () -> Unit,
     appViewModel: AppViewModel = hiltViewModel(),
+    cardListViewModel: CardListViewModel = hiltViewModel(),
 ) {
     val themeMode by appViewModel.themeMode.collectAsStateWithLifecycle()
 
@@ -81,7 +84,9 @@ fun SettingsScreen(
             item {
                 SettingsCard {
                     ListItem(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { cardListViewModel.connectBank() },
                         headlineContent = { Text("Connect a bank") },
                         supportingContent = { Text("Link via Plaid to import cards & transactions") },
                         leadingContent = {

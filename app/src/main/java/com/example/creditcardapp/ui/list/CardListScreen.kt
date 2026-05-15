@@ -28,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Refresh
@@ -149,13 +148,6 @@ fun CardListScreen(
                         Icon(
                             Icons.Outlined.Map,
                             contentDescription = "Best card nearby",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    IconButton(onClick = { viewModel.connectBank() }) {
-                        Icon(
-                            Icons.Outlined.AccountBalance,
-                            contentDescription = "Connect bank",
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }

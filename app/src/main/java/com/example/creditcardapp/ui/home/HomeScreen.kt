@@ -105,7 +105,9 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            // beyondBoundsPageCount = 1, // keep adjacent page composed for smoother swipe
+            // Keep every page composed so the Plaid Link launcher hosted in
+            // CardListScreen stays alive while the user is on the Settings tab.
+            beyondViewportPageCount = HomeTabs.size - 1,
         ) { page ->
             when (page) {
                 0 -> CardListScreen(
