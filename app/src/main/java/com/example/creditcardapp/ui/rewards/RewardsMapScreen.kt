@@ -6,7 +6,6 @@ import android.net.Uri
 import android.preference.PreferenceManager
 import android.provider.Settings
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -190,20 +189,6 @@ fun RewardsMapScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                // Swipe-right from anywhere on the screen → back. Threshold chosen
-                // generously so the system back-edge gesture still wins near the edge.
-                .pointerInput(onBack) {
-                    var totalDx = 0f
-                    var totalDy = 0f
-                    detectHorizontalDragGestures(
-                        onDragStart = { totalDx = 0f; totalDy = 0f },
-                        onDragEnd = {
-                            if (totalDx > 180f && kotlin.math.abs(totalDy) < 120f) onBack()
-                        },
-                    ) { _, dragAmount ->
-                        totalDx += dragAmount
-                    }
-                }
         ) {
             // One unified search bar handles everything: business names, locations,
             // and "{business} in/near {place}" combinations. Routed through

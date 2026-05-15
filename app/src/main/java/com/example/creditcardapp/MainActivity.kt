@@ -4,11 +4,15 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.creditcardapp.ui.AppViewModel
 import com.example.creditcardapp.ui.auth.BiometricGate
 import com.example.creditcardapp.ui.navigation.AppNavGraph
 import com.example.creditcardapp.ui.theme.CreditCardAppTheme
@@ -16,6 +20,9 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+
+    private val appViewModel: AppViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // FLAG_SECURE: hide the app from screenshots, screen recording, and the
@@ -33,7 +40,8 @@ class MainActivity : FragmentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            CreditCardAppTheme {
+            val themeMode by appViewModel.themeMode.collectAsStateWithLifecycle()
+            CreditCardAppTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

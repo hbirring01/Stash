@@ -11,9 +11,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.creditcardapp.ui.add.AddCardScreen
-import com.example.creditcardapp.ui.list.CardListScreen
+import com.example.creditcardapp.ui.home.HomeScreen
 import com.example.creditcardapp.ui.plaidsetup.PlaidSetupScreen
-import com.example.creditcardapp.ui.rewards.RewardsMapScreen
 import com.example.creditcardapp.ui.transactions.TransactionsScreen
 
 private const val MOTION = 320
@@ -23,7 +22,7 @@ fun AppNavGraph() {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = Destination.CardList.route,
+        startDestination = Destination.Home.route,
         enterTransition = {
             slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(MOTION)) +
                 fadeIn(tween(MOTION))
@@ -41,12 +40,11 @@ fun AppNavGraph() {
                 fadeOut(tween(MOTION))
         }
     ) {
-        composable(Destination.CardList.route) {
-            CardListScreen(
+        composable(Destination.Home.route) {
+            HomeScreen(
                 onAddCard = { navController.navigate(Destination.AddCard.route) },
                 onViewTransactions = { id -> navController.navigate(Destination.Transactions.build(id)) },
                 onOpenPlaidSetup = { navController.navigate(Destination.PlaidSetup.route) },
-                onOpenRewardsMap = { navController.navigate(Destination.RewardsMap.route) }
             )
         }
         composable(Destination.AddCard.route) {
@@ -54,9 +52,6 @@ fun AppNavGraph() {
         }
         composable(Destination.PlaidSetup.route) {
             PlaidSetupScreen(onBack = { navController.popBackStack() })
-        }
-        composable(Destination.RewardsMap.route) {
-            RewardsMapScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = Destination.Transactions.route,
