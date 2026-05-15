@@ -52,18 +52,33 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
-      - name: Rename APKs
+      - name: Bundle release AAB (signed, for Play Store)
+        if: steps.keystore.outputs.path != ''
+        run: ./gradlew bundleRelease --no-daemon
+        env:
+          FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
+          RELEASE_STORE_FILE: ${{ steps.keystore.outputs.path }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Rename artifacts
         run: |
           mkdir -p artifacts
           cp app/build/outputs/apk/debug/app-debug.apk "artifacts/StashApp-${{ github.ref_name }}-debug.apk"
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
             cp app/build/outputs/apk/release/app-release.apk "artifacts/StashApp-${{ github.ref_name }}-release.apk"
           fi
+          if [ -f app/build/outputs/bundle/release/app-release.aab ]; then
+            cp app/build/outputs/bundle/release/app-release.aab "artifacts/StashApp-${{ github.ref_name }}-release.aab"
+          fi
 
-      - name: Create GitHub Release and upload APK(s)
+      - name: Create GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: artifacts/*.apk
+          files: |
+            artifacts/*.apk
+            artifacts/*.aab

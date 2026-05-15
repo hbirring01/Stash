@@ -1,0 +1,36 @@
+version: 2
+updates:
+  # Android / Gradle dependencies (versions in gradle/libs.versions.toml + build.gradle.kts)
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "gradle"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      androidx:
+        patterns:
+          - "androidx.*"
+      compose:
+        patterns:
+          - "androidx.compose*"
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+
+  # GitHub Actions versions (e.g. actions/checkout, setup-java)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
