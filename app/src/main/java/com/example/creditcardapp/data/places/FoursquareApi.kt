@@ -21,7 +21,7 @@ interface FoursquareApi {
         @Query("limit") limit: Int = 50,
         @Query("sort") sort: String = "DISTANCE",
         @Query("query") query: String? = null,
-        @Query("fields") fields: String = "fsq_place_id,name,categories,latitude,longitude,distance,location"
+        @Query("fields") fields: String = "fsq_place_id,name,categories,latitude,longitude,distance,location,website,social_media"
     ): FsqSearchResponse
 }
 
@@ -43,6 +43,7 @@ data class FsqPlace(
     val geocodes: FsqGeocodes? = null,
     val distance: Int? = null,
     val location: FsqLocation? = null,
+    val website: String? = null,
 ) {
     val id: String get() = fsqPlaceId ?: fsqId ?: name
     val lat: Double? get() = latitude ?: geocodes?.main?.latitude

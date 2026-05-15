@@ -80,6 +80,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.example.creditcardapp.domain.model.RewardCategory
 import com.example.creditcardapp.ui.permission.RequestLocationPermission
 import org.osmdroid.config.Configuration
@@ -698,14 +700,12 @@ private fun PlaceCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .width(10.dp)
-                        .height(10.dp)
-                        .clip(CircleShape)
-                        .background(categoryTint)
+                PlaceLogo(
+                    name = rec.place.name,
+                    logoDomain = rec.place.logoDomain,
+                    tint = categoryTint,
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(12.dp))
                 Text(
                     text = rec.place.name,
                     style = MaterialTheme.typography.titleMedium,
@@ -908,3 +908,63 @@ private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Doub
 // Mountain View, CA — fallback while we wait for a real GPS fix.
 private const val DEFAULT_LAT = 37.4220
 private const val DEFAULT_LON = -122.0841
+
+/**
+ * Circular logo for a business. Loads from Clearbit Logo
+ * (`https://logo.clearbit.com/<domain>?size=128`) when we have a website
+ * domain. Falls back to a colored circle with the first letter of the
+ * business name while loading, on error, or when no domain is available.
+ *
+ * Clearbit Logo is free, no API key required.
+ */
+@Composable
+private fun PlaceLogo(
+    name: String,
+    logoDomain: String?,
+    tint: Color,
+) {
+    val fallback: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .width(40.dp)
+                .height(40.dp)
+                .clip(CircleShape)
+                .background(tint.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = name.firstOrNull()?.uppercase() ?: "?",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = tint,
+            )
+        }
+    }
+
+    if (logoDomain.isNullOrBlank()) {
+        fallback()
+        return
+    }
+
+    val context = LocalContext.current
+    val request = remember(logoDomain) {
+        ImageRequest.Builder(context)
+            .data("https://logo.clearbit.com/$logoDomain?size=128")
+            .crossfade(true)
+            .build()
+    }
+    SubcomposeAsyncImage(
+        model = request,
+        contentDescription = "$name logo",
+        modifier = Modifier
+            .width(40.dp)
+            .height(40.dp)
+            .clip(CircleShape)
+            .background(Color.White),
+        loading = { fallback() },
+        error = { fallback() },
+    )
+}
+
+
+

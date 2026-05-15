@@ -82,6 +82,9 @@ class PlacesRepository @Inject constructor(
                 latitude = pLat,
                 longitude = pLon,
                 distanceMeters = haversine(lat, lon, pLat, pLon),
+                website = el.tags["website"]
+                    ?: el.tags["contact:website"]
+                    ?: el.tags["brand:website"],
             )
         }.sortedBy { it.distanceMeters }
     }
@@ -112,6 +115,7 @@ class PlacesRepository @Inject constructor(
                 latitude = pLat,
                 longitude = pLon,
                 distanceMeters = p.distance?.toDouble() ?: haversine(lat, lon, pLat, pLon),
+                website = p.website,
             )
         }.sortedBy { it.distanceMeters }
     }
@@ -200,6 +204,7 @@ class PlacesRepository @Inject constructor(
                         longitude = pLon,
                         // No anchor — Foursquare's `distance` is relative to `near`.
                         distanceMeters = p.distance?.toDouble() ?: 0.0,
+                        website = p.website,
                     )
                 }
                 Result.success(places)
@@ -246,6 +251,9 @@ class PlacesRepository @Inject constructor(
                 latitude = pLat,
                 longitude = pLon,
                 distanceMeters = haversine(lat, lon, pLat, pLon),
+                website = el.tags["website"]
+                    ?: el.tags["contact:website"]
+                    ?: el.tags["brand:website"],
             )
         }
             // Overpass can return the same business as both a node and the parent way.
