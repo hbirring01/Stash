@@ -1,6 +1,7 @@
 package com.example.creditcardapp.data.notifications
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -55,6 +56,7 @@ class OfferNotifier @Inject constructor(
     }
 
     /** Fire a notification for the highest-value offer matching a nearby place. */
+    @SuppressLint("MissingPermission") // guarded by hasPermission() above
     fun notifyOfferNearby(offer: Offer, placeName: String) {
         if (!hasPermission()) return
 

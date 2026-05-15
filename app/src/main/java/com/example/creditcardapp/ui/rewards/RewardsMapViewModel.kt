@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.creditcardapp.data.location.GeocoderProvider
 import com.example.creditcardapp.data.location.LocationProvider
+import com.example.creditcardapp.data.notifications.OfferGeofenceManager
 import com.example.creditcardapp.data.notifications.OfferNotifier
 import com.example.creditcardapp.data.places.NearbyPlace
 import com.example.creditcardapp.data.places.PlacesRepository
+import com.example.creditcardapp.data.preferences.NotificationPreferences
 import com.example.creditcardapp.data.repository.CreditCardRepository
 import com.example.creditcardapp.data.repository.OffersRepository
 import com.example.creditcardapp.data.repository.RewardsRepository
@@ -108,6 +110,8 @@ class RewardsMapViewModel @Inject constructor(
     private val placesRepository: PlacesRepository,
     private val offersRepository: OffersRepository,
     private val offerNotifier: OfferNotifier,
+    private val offerGeofenceManager: OfferGeofenceManager,
+    private val notificationPreferences: NotificationPreferences,
     private val cardRepository: CreditCardRepository,
     private val rewardsRepository: RewardsRepository,
 ) : ViewModel() {
@@ -428,6 +432,12 @@ class RewardsMapViewModel @Inject constructor(
                     offerNotifier.notifyOfferNearby(offer, rec.place.name)
                 }
             }
+        // Refresh background geofences so offer notifications fire even when the
+        // app is closed. No-op if the user hasn't opted in or hasn't granted
+        // ACCESS_BACKGROUND_LOCATION.
+        if (notificationPreferences.isBackgroundOffersEnabled()) {
+            runCatching { offerGeofenceManager.refresh(places) }
+        }
     }
 
     private fun recommend(
