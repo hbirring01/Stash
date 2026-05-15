@@ -351,13 +351,17 @@ fun RewardsMapScreen(
                 }
             }
 
-            // Pull-to-refresh wraps the LazyColumn
+            // Pull-to-refresh wraps the LazyColumn. `weight(1f)` is critical:
+            // it tells the parent Column to give this box all remaining height,
+            // which lets the LazyColumn inside scroll independently of the map.
             val refreshState = rememberPullToRefreshState()
             PullToRefreshBox(
                 isRefreshing = state.refreshing,
                 onRefresh = { viewModel.refresh() },
                 state = refreshState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             ) {
                 LazyColumn(
                     state = listState,
