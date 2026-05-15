@@ -143,6 +143,15 @@ fun RewardsMapScreen(
         if (idx >= 0) listState.animateScrollToItem(idx)
     }
 
+    // Collapse the map once businesses are loaded so the list gets full screen.
+    // User can re-expand via the toggle in the results header.
+    var mapExpanded by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(filtered.isNotEmpty()) {
+        if (filtered.isNotEmpty()) mapExpanded = false
+    }
+    // Re-tapping a marker on the map needs the map visible; selecting from list
+    // doesn't, so we leave the user in control after the initial collapse.
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -188,16 +197,18 @@ fun RewardsMapScreen(
                 onClear = { viewModel.load() },
             )
 
-            // Map area
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(280.dp)
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                tonalElevation = 1.dp,
-            ) {
+            // Map area — collapsible. Hidden by default once results load so the
+            // business list can use the full screen.
+            if (mapExpanded) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp)
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    tonalElevation = 1.dp,
+                ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (osmReady) {
                         OsmMap(
@@ -273,16 +284,19 @@ fun RewardsMapScreen(
                         }
                     }
                 }
+                }
             }
 
-            Spacer(Modifier.height(6.dp))
+            if (mapExpanded) {
+                Spacer(Modifier.height(6.dp))
 
-            Text(
-                text = "Tip: long-press the map to drop a custom pin · tap a pin to highlight it below.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
+                Text(
+                    text = "Tip: long-press the map to drop a custom pin · tap a pin to highlight it below.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+            }
 
             Spacer(Modifier.height(6.dp))
 
@@ -350,6 +364,12 @@ fun RewardsMapScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    IconButton(onClick = { mapExpanded = !mapExpanded }) {
+                        Icon(
+                            imageVector = if (mapExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.Map,
+                            contentDescription = if (mapExpanded) "Hide map" else "Show map",
+                        )
+                    }
                 }
             }
 
