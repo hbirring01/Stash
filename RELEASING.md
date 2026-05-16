@@ -77,7 +77,7 @@ Pushing the tag triggers `.github/workflows/release.yml`, which:
 
 ## 8. Post-release
 
-- [ ] Verify the GitHub Pages site still loads: <https://hbirring01.github.io/CreditCardApp/>
+- [ ] Verify the GitHub Pages site still loads at the current published URL: <https://hbirring01.github.io/CreditCardApp/>
 - [ ] Smoke-test the release APK on a clean install (catches missing migrations)
 - [ ] Close the milestone / move incomplete issues to next
 
