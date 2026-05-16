@@ -18,6 +18,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
@@ -39,7 +41,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.creditcardapp.ui.list.CardListScreen
+import com.example.creditcardapp.ui.offers.OffersScreen
 import com.example.creditcardapp.ui.rewards.RewardsMapScreen
+import com.example.creditcardapp.ui.rewards.hub.RewardsHubScreen
 import com.example.creditcardapp.ui.settings.SettingsScreen
 import kotlinx.coroutines.launch
 
@@ -51,6 +55,8 @@ private data class HomeTab(
 private val HomeTabs = listOf(
     HomeTab("Wallet", Icons.Outlined.CreditCard),
     HomeTab("Map", Icons.Outlined.Map),
+    HomeTab("Rewards", Icons.Outlined.EmojiEvents),
+    HomeTab("Offers", Icons.Outlined.LocalOffer),
     HomeTab("Settings", Icons.Outlined.Settings),
 )
 
@@ -69,8 +75,6 @@ fun HomeScreen(
     onAddCard: () -> Unit,
     onViewTransactions: (Long) -> Unit,
     onOpenPlaidSetup: () -> Unit,
-    onOpenRewardsHub: () -> Unit,
-    onOpenOffers: () -> Unit,
 ) {
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { HomeTabs.size })
     val scope = rememberCoroutineScope()
@@ -122,14 +126,18 @@ fun HomeScreen(
                 )
                 1 -> RewardsMapScreen(
                     isActive = pagerState.currentPage == 1,
-                    onBack = {
-                        scope.launch { pagerState.animateScrollToPage(0) }
-                    },
+                    onBack = null,
                 )
-                2 -> SettingsScreen(
+                2 -> RewardsHubScreen(
+                    onBack = {},
+                    showBack = false,
+                )
+                3 -> OffersScreen(
+                    onBack = {},
+                    showBack = false,
+                )
+                4 -> SettingsScreen(
                     onOpenPlaidSetup = onOpenPlaidSetup,
-                    onOpenRewardsHub = onOpenRewardsHub,
-                    onOpenOffers = onOpenOffers,
                 )
             }
         }

@@ -34,7 +34,6 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TravelExplore
@@ -112,7 +111,7 @@ private const val SAMPLE_SPEND_DOLLARS = 50.0
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RewardsMapScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     isActive: Boolean = true,
     viewModel: RewardsMapViewModel = hiltViewModel(),
 ) {
@@ -169,7 +168,7 @@ fun RewardsMapScreen(
             animate(initialValue = mapHeightPx, targetValue = 0f) { v, _ -> mapHeightPx = v }
         }
     }
-    val nestedScrollConnection = remember(maxMapPx) {
+    val nestedScrollConnection = remember(maxMapPx, listState) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val dy = available.y
@@ -192,7 +191,7 @@ fun RewardsMapScreen(
                 val dy = available.y
                 val current = mapHeightPx
                 // List is at top and the user keeps pulling down → reveal map.
-                if (dy > 0f && current < maxMapPx) {
+                if (dy > 0f && current < maxMapPx && !listState.canScrollBackward) {
                     val newH = (current + dy).coerceAtMost(maxMapPx)
                     val consumedY = newH - current
                     mapHeightPx = newH
@@ -208,8 +207,10 @@ fun RewardsMapScreen(
             TopAppBar(
                 title = { Text("Best card nearby", style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 actions = {
@@ -223,9 +224,6 @@ fun RewardsMapScreen(
                                 MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onBackground,
                         )
-                    }
-                    IconButton(onClick = { viewModel.load() }) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -939,6 +937,5 @@ private fun PlaceLogo(
         error = { fallback() },
     )
 }
-
 
 

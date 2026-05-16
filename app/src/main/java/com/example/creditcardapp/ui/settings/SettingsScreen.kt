@@ -15,10 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.AlertDialog
@@ -56,8 +54,6 @@ import com.example.creditcardapp.ui.list.CardListViewModel
 @Composable
 fun SettingsScreen(
     onOpenPlaidSetup: () -> Unit,
-    onOpenRewardsHub: () -> Unit = {},
-    onOpenOffers: () -> Unit = {},
     appViewModel: AppViewModel = hiltViewModel(),
     cardListViewModel: CardListViewModel = hiltViewModel(),
     apiKeyViewModel: ApiKeySettingsViewModel = hiltViewModel(),
@@ -99,54 +95,6 @@ fun SettingsScreen(
                     current = themeMode,
                     onSelect = { appViewModel.setThemeMode(it) },
                 )
-            }
-            item {
-                SettingsCard {
-                    ListItem(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpenRewardsHub() },
-                        headlineContent = { Text("Rewards Hub") },
-                        supportingContent = { Text("Categories, points & annual-fee ROI") },
-                        leadingContent = {
-                            Icon(
-                                Icons.Outlined.EmojiEvents,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        trailingContent = {
-                            Icon(Icons.Outlined.ChevronRight, contentDescription = null)
-                        },
-                        colors = ListItemDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        ),
-                    )
-                }
-            }
-            item {
-                SettingsCard {
-                    ListItem(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpenOffers() },
-                        headlineContent = { Text("Card-linked offers") },
-                        supportingContent = { Text("Track Amex / Chase / Citi offers and deep-link to activate") },
-                        leadingContent = {
-                            Icon(
-                                Icons.Outlined.LocalOffer,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        trailingContent = {
-                            Icon(Icons.Outlined.ChevronRight, contentDescription = null)
-                        },
-                        colors = ListItemDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        ),
-                    )
-                }
             }
             item {
                 SettingsCard {

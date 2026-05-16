@@ -70,6 +70,7 @@ private enum class HubTab(val label: String) {
 @Composable
 fun RewardsHubScreen(
     onBack: () -> Unit,
+    showBack: Boolean = true,
     viewModel: RewardsHubViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -81,8 +82,10 @@ fun RewardsHubScreen(
             TopAppBar(
                 title = { Text("Rewards Hub") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                    if (showBack) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

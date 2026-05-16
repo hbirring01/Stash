@@ -45,8 +45,6 @@ fun AppNavGraph() {
                 onAddCard = { navController.navigate(Destination.AddCard.route) },
                 onViewTransactions = { id -> navController.navigate(Destination.Transactions.build(id)) },
                 onOpenPlaidSetup = { navController.navigate(Destination.PlaidSetup.route) },
-                onOpenRewardsHub = { navController.navigate(Destination.RewardsHub.route) },
-                onOpenOffers = { navController.navigate(Destination.Offers.route) },
             )
         }
         composable(Destination.AddCard.route) {
