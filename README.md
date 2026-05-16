@@ -9,7 +9,7 @@ Android app that tells you **which credit card to swipe at the business in front
 </p>
 
 <p align="center">
-  <a href="https://hbirring01.github.io/CreditCardApp/privacy.html"><b>Privacy policy</b></a> ·
+  <a href="https://hbirring01.github.io/Stash/privacy.html"><b>Privacy policy</b></a> ·
   <a href="RELEASING.md">Release checklist</a> ·
   <a href="server/README.md">Plaid proxy server</a>
 </p>
@@ -94,8 +94,8 @@ docs/                 Privacy policy + landing page (GitHub Pages)
 ### Clone & configure
 
 ```bash
-git clone https://github.com/hbirring01/CreditCardApp.git
-cd CreditCardApp
+git clone https://github.com/hbirring01/Stash.git
+cd Stash
 ```
 
 Create `local.properties` (already git-ignored) with at minimum:
@@ -163,7 +163,7 @@ Everything sensitive stays on-device:
 
 The only outbound network calls are to: Plaid (banking), Foursquare (places), Overpass (places), CARTO (tiles), and Android's geocoder.
 
-Full policy: [hbirring01.github.io/CreditCardApp/privacy.html](https://hbirring01.github.io/CreditCardApp/privacy.html)
+Full policy: [hbirring01.github.io/Stash/privacy.html](https://hbirring01.github.io/Stash/privacy.html)
 
 ## Releasing
 
