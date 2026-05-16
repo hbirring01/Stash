@@ -16,14 +16,14 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
-## What's new in v1.4.0
+## What's new in v1.5.0
 
+- 🧭 **Dedicated Rewards + Offers tabs** — Rewards Hub and card-linked offers now live on their own bottom-nav tabs instead of being tucked into other screens, so the top-level app flow is Wallet → Map → Rewards → Offers → Settings.
+- 🗺️ **Smoother map/list handoff** — the rewards map collapses and expands more predictably as you scroll, and the list now snaps back to the currently selected place without fighting the map header.
+- ✨ **Cleaner top-level surfaces** — Rewards Hub and Offers render as standalone destinations with simplified chrome, which keeps the shared home pager consistent and removes redundant back affordances.
 - 🎯 **Card-linked offers tracker** — surfaces active issuer offers (Amex, Chase, etc.) you can manually add, see your savings progress on, and one-tap deep-link into the issuer app to activate.
 - 🛎️ **Proximity notifications** — when you walk into a place that matches one of your unactivated offers, you get a notification with a tap-through to activate. Works both in the foreground (map open) and **in the background via system geofences** — fully opt-in with a clear two-step location permission flow.
 - 🔁 **Boot recovery** — geofences are automatically re-installed after device reboot or app upgrade via a `BroadcastReceiver` + `HiltWorker`, so background offer alerts survive power cycles without needing you to reopen the app.
-- 🤖 **AI Best-Card hero** on the map (v1.3) — picks the optimal card for the focused place using effective multiplier (base vs. quarterly rotating bonus), then breaks ties using sign-up bonus progress.
-- 🔐 **Write-only API key management** in Settings (v1.3) — keys stored in `EncryptedSharedPreferences` backed by the Android Keystore.
-- 📄 **Public privacy policy** at [hbirring01.github.io/CreditCardApp/privacy.html](https://hbirring01.github.io/CreditCardApp/privacy.html) — required for Plaid production access.
 
 ## Features
 
