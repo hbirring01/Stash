@@ -59,6 +59,7 @@ import java.util.Locale
 @Composable
 fun OffersScreen(
     onBack: () -> Unit,
+    showBack: Boolean = true,
     viewModel: OffersViewModel = hiltViewModel(),
 ) {
     val offers by viewModel.offers.collectAsStateWithLifecycle()
@@ -109,8 +110,10 @@ fun OffersScreen(
             TopAppBar(
                 title = { Text("Card-linked offers") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                    if (showBack) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
