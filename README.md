@@ -3,9 +3,10 @@
 Android app that tells you **which credit card to swipe at the business in front of you** for the highest rewards. Pulls your linked cards via Plaid, finds nearby businesses via Foursquare + OpenStreetMap, and ranks every visible place by the multiplier your cards earn there.
 
 <p align="center">
-  <img src="screenshots/map.png"      width="240" alt="Rewards map with AI best-card hero" />
-  <img src="screenshots/wallet.png"   width="240" alt="Wallet / cards home" />
-  <img src="screenshots/settings.png" width="240" alt="Settings · API keys" />
+  <img src="screenshots/map.png"      width="220" alt="Rewards tab — map with AI best-card hero" />
+  <img src="screenshots/offers.png"   width="220" alt="Offers tab — card-linked issuer offers" />
+  <img src="screenshots/wallet.png"   width="220" alt="Wallet / cards home" />
+  <img src="screenshots/settings.png" width="220" alt="Settings — keys, theme, version" />
 </p>
 
 <p align="center">
@@ -15,6 +16,11 @@ Android app that tells you **which credit card to swipe at the business in front
 </p>
 
 ---
+
+## What's new in v1.4.3
+
+- 📸 **Refreshed screenshots** in the README — fresh captures of the new Rewards / Offers / Wallet / Settings screens on a Pixel API 34 emulator.
+- 🔓 **`FLAG_SECURE` is now release-only** — the screenshot/recording block remains on for production APKs (protecting card numbers, balances, and Plaid setup), but is disabled in debug builds so the Layout Inspector and dev screenshots work.
 
 ## What's new in v1.4.2
 

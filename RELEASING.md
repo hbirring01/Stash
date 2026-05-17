@@ -26,9 +26,10 @@ Required shots (overwrite the existing PNGs — keep filenames stable so READMEs
 
 | File                          | Screen                                                  |
 | ----------------------------- | ------------------------------------------------------- |
-| `screenshots/map.png`         | Rewards map with the AI best-card hero visible          |
+| `screenshots/map.png`         | Rewards tab — map with the AI best-card hero visible    |
+| `screenshots/offers.png`      | Offers tab — at least one card-linked offer card        |
 | `screenshots/wallet.png`      | Wallet / cards home (at least 2 linked cards)           |
-| `screenshots/settings.png`    | Settings screen showing Plaid + Foursquare key rows     |
+| `screenshots/settings.png`    | Settings — showing Plaid + Foursquare rows + version    |
 | `screenshots/plaid.png`       | Plaid Link setup dialog                                 |
 | `screenshots/add.png`         | Add card screen (optional, only if it changed)          |
 | `screenshots/empty.png`       | Empty / first-run state (optional, only if it changed)  |

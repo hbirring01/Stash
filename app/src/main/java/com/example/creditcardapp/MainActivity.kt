@@ -29,10 +29,16 @@ class MainActivity : FragmentActivity() {
         // Recents thumbnail. Card numbers, balances, and the Plaid setup form
         // are never rendered to non-protected surfaces. Casting/mirroring to an
         // insecure display is also blocked.
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        //
+        // Disabled in debug builds so dev screenshots, the Layout Inspector,
+        // and emulator screen capture work for development. Release builds
+        // (the only thing users install) always have FLAG_SECURE on.
+        if (!BuildConfig.DEBUG) {
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE
+            )
+        }
         // Tap-jacking defense: drop any touch event delivered while an obscuring
         // overlay (rogue notification toast, accessibility shim, draw-over-other-
         // apps) is on top of the activity.
