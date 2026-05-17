@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.creditcardapp.BuildConfig
 import com.example.creditcardapp.data.preferences.ThemeMode
 import com.example.creditcardapp.ui.AppViewModel
 import com.example.creditcardapp.ui.list.CardListViewModel
@@ -178,12 +179,24 @@ fun SettingsScreen(
             }
             item {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "StashApp · Built with Compose & Material 3",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "StashApp · Built with Compose & Material 3",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

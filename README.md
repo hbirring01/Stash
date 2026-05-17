@@ -16,6 +16,10 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.4.2
+
+- 🔢 **Version info in Settings** — the bottom of the Settings screen now shows the installed `versionName` and `versionCode`, so it's obvious which build you're running when filing feedback.
+
 ## What's new in v1.4.1
 
 - 🧭 **Rewards and Offers split into dedicated bottom tabs** — the combined hub is now two focused destinations: a Rewards tab (map + best-card hero) and an Offers tab (issuer offers tracker). Cleaner navigation, faster access, and less context-switching when you're standing at the register.
