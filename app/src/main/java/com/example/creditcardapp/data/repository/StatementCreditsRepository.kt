@@ -62,14 +62,17 @@ class StatementCreditsRepository @Inject constructor(
     suspend fun logUsage(usage: StatementCreditUsage): Long = dao.insertUsage(usage.toEntity())
 
     /**
-     * Removes a usage row. If it was auto-logged (source=AUTO, has a
+     * Removes a usage row. If it was auto-logged (source=AUTO or AI, has a
      * transactionId), we also record a dismissal so the auto-matcher won't
      * re-create it on the next Plaid sync.
      */
     suspend fun deleteUsage(id: Long) {
         val existing = dao.getUsage(id)
         dao.deleteUsageById(id)
-        if (existing != null && existing.source == "AUTO" && existing.transactionId != null) {
+        if (existing != null &&
+            (existing.source == "AUTO" || existing.source == "AI") &&
+            existing.transactionId != null
+        ) {
             autoMatcher.dismiss(existing.creditId, existing.transactionId)
         }
     }

@@ -129,6 +129,6 @@ data class StatementCreditUsage(
     val description: String? = null,
     /** Source Plaid transactionId when this row was auto-logged. */
     val transactionId: String? = null,
-    /** MANUAL | AUTO. */
+    /** MANUAL | AUTO | AI. */
     val source: String = "MANUAL",
 )

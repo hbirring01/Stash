@@ -1,5 +1,6 @@
 package com.example.creditcardapp.ui.credits
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,12 +11,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -51,7 +57,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.creditcardapp.domain.model.CreditCategory
 import com.example.creditcardapp.domain.model.CreditPeriod
 import com.example.creditcardapp.domain.model.StatementCredit
+import com.example.creditcardapp.domain.model.StatementCreditUsage
 import com.example.creditcardapp.ui.format.asCurrency
+import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -121,6 +129,10 @@ fun CreditsScreen(
                     onLog = { loggingFor = state },
                     onEdit = { editing = state.credit },
                     onDelete = { viewModel.deleteCredit(state.credit.id) },
+                    observeUsages = {
+                        viewModel.observeUsages(state.credit.id, state.credit.periodWindow())
+                    },
+                    onDeleteUsage = { id -> viewModel.deleteUsage(id) },
                 )
             }
         }
@@ -164,9 +176,12 @@ private fun CreditRow(
     onLog: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    observeUsages: () -> Flow<List<StatementCreditUsage>>,
+    onDeleteUsage: (Long) -> Unit,
 ) {
     val credit = state.credit
     var menuOpen by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
     val resetDate = remember(credit.id, credit.periodKind) {
         val end = credit.periodWindow().last + 1
         SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(end))
@@ -178,7 +193,9 @@ private fun CreditRow(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
                 verticalAlignment = Alignment.Top,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -202,6 +219,12 @@ private fun CreditRow(
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
+                }
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                        contentDescription = if (expanded) "Collapse" else "Expand",
+                    )
                 }
                 IconButton(onClick = { menuOpen = true }) {
                     Icon(Icons.Outlined.MoreVert, contentDescription = "More")
@@ -242,7 +265,97 @@ private fun CreditRow(
                 )
                 FilledTonalButton(onClick = onLog) { Text("Mark used") }
             }
+            if (expanded) {
+                Spacer(Modifier.height(12.dp))
+                UsageList(
+                    usagesFlow = observeUsages(),
+                    onDelete = onDeleteUsage,
+                )
+            }
         }
+    }
+}
+
+/**
+ * Per-credit usage list shown when a credit row is expanded. Each row shows
+ * the merchant/description, date, amount, and — for non-manual entries — a
+ * small badge identifying whether the usage was matched automatically by the
+ * deterministic rule (`AUTO`) or by the LLM fallback (`AI`).
+ */
+@Composable
+private fun UsageList(
+    usagesFlow: Flow<List<StatementCreditUsage>>,
+    onDelete: (Long) -> Unit,
+) {
+    val usages by usagesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    if (usages.isEmpty()) {
+        Text(
+            "No usage logged this period yet.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    val dateFmt = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        usages.forEach { usage ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        usage.description?.takeIf { it.isNotBlank() } ?: "Usage",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            dateFmt.format(Date(usage.usedAt)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (usage.source != "MANUAL") {
+                            Spacer(Modifier.size(6.dp))
+                            SourceBadge(usage.source)
+                        }
+                    }
+                }
+                Text(
+                    usage.amountDollars.asCurrency(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                IconButton(onClick = { onDelete(usage.id) }) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "Delete usage",
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceBadge(source: String) {
+    val (label, color) = when (source) {
+        "AI" -> "AI" to MaterialTheme.colorScheme.tertiary
+        "AUTO" -> "AUTO" to MaterialTheme.colorScheme.primary
+        else -> source to MaterialTheme.colorScheme.outline
+    }
+    Surface(
+        color = color.copy(alpha = 0.15f),
+        contentColor = color,
+        shape = RoundedCornerShape(4.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+        )
     }
 }
 

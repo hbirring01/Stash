@@ -17,6 +17,12 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.7.1
+
+- 🪪 **Per-usage source badges** — expand any credit on the Credits tab to see its individual usages with **AI** / **AUTO** labels, so it's obvious how each charge was matched.
+- 🗑️ **Inline delete on usage rows** — tap the × on any usage to remove it. Auto/AI usages are remembered as dismissed so they won't be re-added on the next sync.
+- ⬇️ **Tap-to-expand credit rows** — chevron indicator + clickable header for the usage list.
+
 ## What's new in v1.7.0
 
 - 🤖 **AI Assist for credit matching** — when a Plaid transaction doesn't match a credit's literal rules (`uber`, `TRAVEL`, etc.), an opt-in LLM is asked one short question: *"does this merchant qualify?"* Catches obfuscated descriptors like `SQ *UBR EATS NYC`, `PAYPAL *DISNEY PLUS`, `TST* MARRIOTT BONVOY` that pattern rules miss.
