@@ -32,6 +32,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import com.example.creditcardapp.data.auth.PinStore
 
 @Composable
@@ -126,6 +128,15 @@ fun BiometricGate(content: @Composable () -> Unit) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // App logo at the top
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = R.drawable.app_logo),
+                contentDescription = "App Logo",
+                modifier = Modifier
+                    .height(80.dp)
+                    .width(120.dp)
+                    .padding(bottom = 16.dp)
+            )
             Icon(
                 imageVector = Icons.Outlined.Fingerprint,
                 contentDescription = null,

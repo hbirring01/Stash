@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="80dp"
+    android:viewportWidth="120"
+    android:viewportHeight="80">
+    <!-- Card background -->
+    <rect
+        android:x="8"
+        android:y="16"
+        android:width="104"
+        android:height="48"
+        android:rx="10"
+        android:fillColor="#1976D2" />
+    <!-- Stripe -->
+    <rect
+        android:x="8"
+        android:y="28"
+        android:width="104"
+        android:height="8"
+        android:fillColor="#1565C0" />
+    <!-- Chip -->
+    <rect
+        android:x="20"
+        android:y="40"
+        android:width="16"
+        android:height="10"
+        android:rx="2"
+        android:fillColor="#FFD600" />
+    <!-- App initials -->
+    <path
+        android:pathData="M60,55 l0,-15 l8,0 l0,15 l-8,0 z M72,55 l0,-15 l8,0 l0,15 l-8,0 z"
+        android:fillColor="#FFFFFF" />
+</vector>
