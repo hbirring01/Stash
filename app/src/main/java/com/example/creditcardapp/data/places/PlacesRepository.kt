@@ -1,9 +1,14 @@
 package com.example.creditcardapp.data.places
 
+import android.util.Log
 import com.example.creditcardapp.data.preferences.ApiKeyStore
 import com.example.creditcardapp.domain.model.RewardCategory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.atan2
@@ -16,6 +21,8 @@ class PlacesRepository @Inject constructor(
     private val api: OverpassApi,
     private val foursquare: FoursquareApi,
     private val apiKeyStore: ApiKeyStore,
+    private val httpClient: OkHttpClient,
+    private val json: Json,
 ) {
 
     /**
@@ -69,7 +76,7 @@ class PlacesRepository @Inject constructor(
             );
             out center 60;
         """.trimIndent()
-        val response = api.query(query)
+        val response = queryOverpassMirrors(query)
         return response.elements.mapNotNull { el ->
             val pLat = el.pointLat ?: return@mapNotNull null
             val pLon = el.pointLon ?: return@mapNotNull null
@@ -88,6 +95,44 @@ class PlacesRepository @Inject constructor(
                     ?: el.tags["brand:website"],
             )
         }.sortedBy { it.distanceMeters }
+    }
+
+    /**
+     * POSTs an Overpass QL query to each mirror in [OVERPASS_MIRRORS] until one
+     * returns a non-empty response. The default Retrofit-wired mirror
+     * (kumi.systems) is fast but occasionally returns 504/empty during outages,
+     * so we cascade through the public mirrors before giving up.
+     */
+    private suspend fun queryOverpassMirrors(query: String): OverpassResponse {
+        var lastError: Throwable? = null
+        for (url in OVERPASS_MIRRORS) {
+            try {
+                val req = Request.Builder()
+                    .url(url)
+                    .header("Accept", "*/*")
+                    .post(FormBody.Builder().add("data", query).build())
+                    .build()
+                val body = withContext(Dispatchers.IO) {
+                    httpClient.newCall(req).execute().use { resp ->
+                        if (!resp.isSuccessful) {
+                            lastError = IllegalStateException("Overpass ${resp.code} @ $url")
+                            return@use null
+                        }
+                        resp.body?.string()
+                    }
+                } ?: continue
+                val parsed = json.decodeFromString(OverpassResponse.serializer(), body)
+                if (parsed.elements.isNotEmpty()) return parsed
+                // Empty but successful — try next mirror in case this one is stale.
+            } catch (t: Throwable) {
+                Log.w("PlacesRepository", "Overpass mirror failed: $url", t)
+                lastError = t
+            }
+        }
+        // No mirror returned content; bubble up the last failure if any so the
+        // caller can show a real error instead of "no results".
+        lastError?.let { throw it }
+        return OverpassResponse(emptyList())
     }
 
     private suspend fun fetchFoursquare(
@@ -234,7 +279,7 @@ class PlacesRepository @Inject constructor(
             );
             out center 80;
         """.trimIndent()
-        val response = api.query(query)
+        val response = queryOverpassMirrors(query)
         return response.elements.mapNotNull { el ->
             val pLat = el.pointLat ?: return@mapNotNull null
             val pLon = el.pointLon ?: return@mapNotNull null
@@ -307,6 +352,15 @@ class PlacesRepository @Inject constructor(
         val GROCERY_SHOPS = setOf(
             "supermarket", "convenience", "greengrocer", "butcher",
             "bakery", "deli", "farm"
+        )
+
+        // Public Overpass mirrors, tried in order. kumi is usually fastest;
+        // the others are official OSM-blessed fallbacks. If all three fail the
+        // user typically has no network or all mirrors are under load.
+        val OVERPASS_MIRRORS = listOf(
+            "https://overpass.kumi.systems/api/interpreter",
+            "https://overpass-api.de/api/interpreter",
+            "https://overpass.openstreetmap.fr/api/interpreter",
         )
     }
 }

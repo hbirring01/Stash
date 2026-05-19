@@ -416,7 +416,9 @@ class RewardsMapViewModel @Inject constructor(
             places = recs,
             loading = false,
             refreshing = false,
-            error = nearbyResult.exceptionOrNull()?.let { "Couldn't load nearby places." },
+            error = nearbyResult.exceptionOrNull()?.let {
+                "Couldn't load nearby places: ${it.message ?: it.javaClass.simpleName}"
+            },
             // Selection no longer valid after a fetch.
             selectedPlaceId = null,
             nameSearchMode = false,

@@ -17,6 +17,12 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.7.2
+
+- 🌐 **Multi-mirror Overpass fallback** — when the primary mirror (kumi.systems) is slow or down, the app now automatically tries the official `overpass-api.de` and `overpass.openstreetmap.fr` mirrors before giving up. Fixes "no businesses found" on the Rewards map.
+- 🩹 **Repaired corrupted `PlacesRepository.kt`** that had been silently latent (a stray shell command had been pasted into the source years ago; only surfaced on a forced recompile).
+- 💬 **Clearer error messages** on the Rewards map — when a nearby fetch actually fails, the toast now shows the underlying reason instead of a generic message.
+
 ## What's new in v1.7.1
 
 - 🪪 **Per-usage source badges** — expand any credit on the Credits tab to see its individual usages with **AI** / **AUTO** labels, so it's obvious how each charge was matched.
