@@ -19,6 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class StatementCreditsRepository @Inject constructor(
     private val dao: StatementCreditDao,
+    private val autoMatcher: StatementCreditAutoMatcher,
 ) {
     fun observeAll(): Flow<List<StatementCredit>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
@@ -28,7 +29,14 @@ class StatementCreditsRepository @Inject constructor(
 
     suspend fun get(id: Long): StatementCredit? = dao.get(id)?.toDomain()
 
-    suspend fun save(credit: StatementCredit): Long = dao.insert(credit.toEntity())
+    suspend fun save(credit: StatementCredit): Long {
+        val id = dao.insert(credit.toEntity())
+        // Editing match rules should backfill against the existing tx history
+        // so users see the progress jump as soon as they save, instead of
+        // waiting for the next Plaid sync.
+        autoMatcher.rescanForCredit(credit.copy(id = if (credit.id == 0L) id else credit.id))
+        return id
+    }
 
     suspend fun deleteCredit(id: Long) {
         dao.deleteUsagesForCredit(id)
@@ -53,5 +61,16 @@ class StatementCreditsRepository @Inject constructor(
 
     suspend fun logUsage(usage: StatementCreditUsage): Long = dao.insertUsage(usage.toEntity())
 
-    suspend fun deleteUsage(id: Long) = dao.deleteUsageById(id)
+    /**
+     * Removes a usage row. If it was auto-logged (source=AUTO, has a
+     * transactionId), we also record a dismissal so the auto-matcher won't
+     * re-create it on the next Plaid sync.
+     */
+    suspend fun deleteUsage(id: Long) {
+        val existing = dao.getUsage(id)
+        dao.deleteUsageById(id)
+        if (existing != null && existing.source == "AUTO" && existing.transactionId != null) {
+            autoMatcher.dismiss(existing.creditId, existing.transactionId)
+        }
+    }
 }

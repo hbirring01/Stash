@@ -18,6 +18,9 @@ fun StatementCreditEntity.toDomain(): StatementCredit = StatementCredit(
     category = runCatching { CreditCategory.valueOf(category) }.getOrDefault(CreditCategory.OTHER),
     notes = notes,
     source = source,
+    matchPattern = matchPattern,
+    matchCategory = matchCategory,
+    autoTrack = autoTrack,
     createdAt = createdAt,
 )
 
@@ -32,6 +35,9 @@ fun StatementCredit.toEntity(): StatementCreditEntity = StatementCreditEntity(
     category = category.name,
     notes = notes,
     source = source,
+    matchPattern = matchPattern,
+    matchCategory = matchCategory,
+    autoTrack = autoTrack,
     createdAt = createdAt,
 )
 
@@ -41,6 +47,8 @@ fun StatementCreditUsageEntity.toDomain(): StatementCreditUsage = StatementCredi
     amountDollars = amountDollars,
     usedAt = usedAt,
     description = description,
+    transactionId = transactionId,
+    source = source,
 )
 
 fun StatementCreditUsage.toEntity(): StatementCreditUsageEntity = StatementCreditUsageEntity(
@@ -49,4 +57,6 @@ fun StatementCreditUsage.toEntity(): StatementCreditUsageEntity = StatementCredi
     amountDollars = amountDollars,
     usedAt = usedAt,
     description = description,
+    transactionId = transactionId,
+    source = source,
 )

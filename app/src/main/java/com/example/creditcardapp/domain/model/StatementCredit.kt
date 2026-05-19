@@ -23,6 +23,12 @@ data class StatementCredit(
     val category: CreditCategory = CreditCategory.OTHER,
     val notes: String? = null,
     val source: String = "MANUAL",
+    /** Pipe-separated alternation, case-insensitive substring match. NULL = no pattern match. */
+    val matchPattern: String? = null,
+    /** Plaid Personal Finance Category (primary), e.g. "TRAVEL". NULL = no category match. */
+    val matchCategory: String? = null,
+    /** When true, the auto-tracker logs matching transactions automatically. */
+    val autoTrack: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
 ) {
     /**
@@ -76,6 +82,30 @@ data class StatementCredit(
         return ((end - now) / MILLIS_PER_DAY).toInt()
     }
 
+    /**
+     * Returns true if a transaction with the given display strings + Plaid
+     * primary category matches either this credit's [matchPattern] (substring
+     * match against `merchantName ?: name`) or [matchCategory] (case-insensitive
+     * exact match). Returns false if both rules are NULL — no rules, no match.
+     */
+    fun matchesTransaction(
+        merchantOrName: String,
+        categoryPrimary: String?,
+    ): Boolean {
+        val haystack = merchantOrName.lowercase()
+        val patternHit = matchPattern
+            ?.lowercase()
+            ?.split('|')
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.any { haystack.contains(it) }
+            ?: false
+        val categoryHit = matchCategory != null &&
+            categoryPrimary != null &&
+            matchCategory.equals(categoryPrimary, ignoreCase = true)
+        return patternHit || categoryHit
+    }
+
     companion object {
         const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000
     }
@@ -97,4 +127,8 @@ data class StatementCreditUsage(
     val amountDollars: Double,
     val usedAt: Long,
     val description: String? = null,
+    /** Source Plaid transactionId when this row was auto-logged. */
+    val transactionId: String? = null,
+    /** MANUAL | AUTO. */
+    val source: String = "MANUAL",
 )

@@ -11,6 +11,7 @@ import com.example.creditcardapp.data.local.DatabaseKeyStore
 import com.example.creditcardapp.data.local.MIGRATION_4_5
 import com.example.creditcardapp.data.local.MIGRATION_5_6
 import com.example.creditcardapp.data.local.MIGRATION_6_7
+import com.example.creditcardapp.data.local.MIGRATION_7_8
 import com.example.creditcardapp.data.local.OfferDao
 import com.example.creditcardapp.data.local.RewardBalanceDao
 import com.example.creditcardapp.data.local.RotatingCategoryDao
@@ -58,7 +59,7 @@ object DatabaseModule {
             // Explicit migrations preserve user data across upgrades. Fall back to
             // destructive wipe only when no migration path is available (e.g. unknown
             // version coming from a much older install) or on downgrade.
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
         if (BuildConfig.DEBUG) builder.addCallback(DebugSeed)
@@ -177,15 +178,16 @@ object DatabaseModule {
             val creditSql = """
                 INSERT INTO statement_credits
                   (cardId, name, amountDollars, periodKind, periodStartMonth,
-                   periodStartDay, category, notes, source, createdAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   periodStartDay, category, notes, source,
+                   matchPattern, matchCategory, autoTrack, createdAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
             val sampleCredits = listOf(
-                arrayOf(1L, "Travel Credit", 300.0, "ANNUAL", 1, 1, "TRAVEL", "Auto-applies to any travel charge", "CURATED", now),
-                arrayOf(3L, "Hotel Credit", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Fine Hotels + Resorts and The Hotel Collection", "CURATED", now),
-                arrayOf(3L, "Uber Cash", 200.0, "ANNUAL", 1, 1, "RIDESHARE", "Monthly $15 / December $35 Uber Cash", "CURATED", now),
-                arrayOf(3L, "Airline Incidental", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Select one airline at start of year", "CURATED", now),
-                arrayOf(3L, "Digital Entertainment", 240.0, "ANNUAL", 1, 1, "ENTERTAINMENT", "Disney+ / Hulu / NYT / WSJ etc.", "CURATED", now),
+                arrayOf(1L, "Travel Credit", 300.0, "ANNUAL", 1, 1, "TRAVEL", "Auto-applies to any travel charge", "CURATED", null, "TRAVEL", 1, now),
+                arrayOf(3L, "Hotel Credit", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Fine Hotels + Resorts and The Hotel Collection", "CURATED", "marriott|hilton|hyatt|ihg|four seasons", "TRAVEL", 1, now),
+                arrayOf(3L, "Uber Cash", 200.0, "ANNUAL", 1, 1, "RIDESHARE", "Monthly $15 / December $35 Uber Cash", "CURATED", "uber", null, 1, now),
+                arrayOf(3L, "Airline Incidental", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Select one airline at start of year", "CURATED", "delta|american airlines|united|southwest|jetblue", "TRAVEL", 1, now),
+                arrayOf(3L, "Digital Entertainment", 240.0, "ANNUAL", 1, 1, "ENTERTAINMENT", "Disney+ / Hulu / NYT / WSJ etc.", "CURATED", "disney|hulu|nytimes|wall street journal|peacock|sirius", null, 1, now),
             )
             sampleCredits.forEach { db.execSQL(creditSql, it) }
         }

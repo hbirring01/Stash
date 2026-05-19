@@ -12,8 +12,9 @@ import androidx.room.RoomDatabase
         OfferEntity::class,
         StatementCreditEntity::class,
         StatementCreditUsageEntity::class,
+        DismissedCreditMatchEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

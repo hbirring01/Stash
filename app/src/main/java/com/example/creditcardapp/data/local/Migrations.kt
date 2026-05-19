@@ -117,3 +117,53 @@ val MIGRATION_6_7: Migration = object : Migration(6, 7) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_statement_credit_usages_usedAt` ON `statement_credit_usages` (`usedAt`)")
     }
 }
+
+/**
+ * v8 — Auto-tracking for statement credits.
+ *
+ * Adds matching rules (pattern + Plaid category) to credits, and a
+ * (transactionId, source) pair to usage rows so transactions are linked back
+ * to their issuer credit. A separate `dismissed_credit_matches` table records
+ * matches the user explicitly removed so we never auto-add them again.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // statement_credits: matching rules + auto-track flag
+        db.execSQL("ALTER TABLE `statement_credits` ADD COLUMN `matchPattern` TEXT")
+        db.execSQL("ALTER TABLE `statement_credits` ADD COLUMN `matchCategory` TEXT")
+        db.execSQL("ALTER TABLE `statement_credits` ADD COLUMN `autoTrack` INTEGER NOT NULL DEFAULT 1")
+
+        // statement_credit_usages: link to source transaction + source tag
+        db.execSQL("ALTER TABLE `statement_credit_usages` ADD COLUMN `transactionId` TEXT")
+        db.execSQL("ALTER TABLE `statement_credit_usages` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'MANUAL'")
+        // Unique on (creditId, transactionId) so a single tx can't be logged
+        // twice against the same credit on resync. NULL transactionId rows
+        // (manual entries) are allowed to repeat — SQLite treats each NULL as
+        // distinct in a unique index.
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_statement_credit_usages_creditId_transactionId` " +
+                "ON `statement_credit_usages` (`creditId`, `transactionId`)"
+        )
+
+        // Persistently dismissed matches: user deleted an auto-logged usage,
+        // we record (creditId, txId) so resync doesn't re-create it.
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `dismissed_credit_matches` (" +
+                "`creditId` INTEGER NOT NULL, " +
+                "`transactionId` TEXT NOT NULL, " +
+                "`dismissedAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`creditId`, `transactionId`))"
+        )
+
+        // Seed match rules on the sample credits so the auto-tracker has
+        // something to do out of the box.
+        // Travel credit -> Plaid PFC category TRAVEL
+        db.execSQL("UPDATE statement_credits SET matchCategory = 'TRAVEL' WHERE name = 'Travel Credit' AND matchCategory IS NULL")
+        // Hotel + airline credits also fall under TRAVEL
+        db.execSQL("UPDATE statement_credits SET matchCategory = 'TRAVEL' WHERE name IN ('Hotel Credit', 'Airline Incidental') AND matchCategory IS NULL")
+        // Uber Cash -> merchant pattern
+        db.execSQL("UPDATE statement_credits SET matchPattern = 'uber' WHERE name = 'Uber Cash' AND matchPattern IS NULL")
+        // Digital Entertainment -> known merchants
+        db.execSQL("UPDATE statement_credits SET matchPattern = 'disney|hulu|nytimes|wall street journal|peacock|sirius' WHERE name = 'Digital Entertainment' AND matchPattern IS NULL")
+    }
+}

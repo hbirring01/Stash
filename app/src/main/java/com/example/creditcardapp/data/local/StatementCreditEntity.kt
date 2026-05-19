@@ -45,6 +45,19 @@ data class StatementCreditEntity(
     val notes: String? = null,
     /** Provenance: CURATED / MANUAL. */
     val source: String = "MANUAL",
+    /**
+     * Case-insensitive substring (or pipe-separated alternation) to match
+     * against a transaction's merchantName/name. NULL disables pattern
+     * matching for this credit. Example: "uber" or "disney|hulu|nytimes".
+     */
+    val matchPattern: String? = null,
+    /**
+     * Plaid Personal Finance Category (primary) to match, e.g. "TRAVEL",
+     * "FOOD_AND_DRINK". NULL disables category matching.
+     */
+    val matchCategory: String? = null,
+    /** When true, the auto-tracker logs matching transactions automatically. */
+    val autoTrack: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
 )
 
@@ -54,7 +67,13 @@ data class StatementCreditEntity(
  */
 @Entity(
     tableName = "statement_credit_usages",
-    indices = [Index("creditId"), Index("usedAt")],
+    indices = [
+        Index("creditId"),
+        Index("usedAt"),
+        // Unique on (creditId, transactionId) so a single tx can't be
+        // auto-logged twice against the same credit during resync.
+        Index(value = ["creditId", "transactionId"], unique = true),
+    ],
 )
 data class StatementCreditUsageEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -66,4 +85,20 @@ data class StatementCreditUsageEntity(
     val usedAt: Long,
     /** Free-form description (merchant, transaction id). */
     val description: String? = null,
+    /** Plaid transaction id when this row was auto-logged. NULL for manual draws. */
+    val transactionId: String? = null,
+    /** MANUAL | AUTO. */
+    val source: String = "MANUAL",
+)
+
+/**
+ * Pair of (creditId, transactionId) the user explicitly removed from a
+ * credit's usage list. We remember the dismissal so the auto-tracker doesn't
+ * re-add the same match on the next sync.
+ */
+@Entity(tableName = "dismissed_credit_matches", primaryKeys = ["creditId", "transactionId"])
+data class DismissedCreditMatchEntity(
+    val creditId: Long,
+    val transactionId: String,
+    val dismissedAt: Long = System.currentTimeMillis(),
 )

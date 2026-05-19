@@ -4,6 +4,7 @@ import com.example.creditcardapp.data.local.CreditCardDao
 import com.example.creditcardapp.data.local.TransactionDao
 import com.example.creditcardapp.data.mapper.toCreditCardEntities
 import com.example.creditcardapp.data.mapper.toEntity
+import com.example.creditcardapp.data.repository.StatementCreditAutoMatcher
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,6 +15,7 @@ class PlaidRepository @Inject constructor(
     private val credentialsStore: PlaidCredentialsStore,
     private val dao: CreditCardDao,
     private val transactionDao: TransactionDao,
+    private val statementCreditAutoMatcher: StatementCreditAutoMatcher,
 ) {
     /** True once the user has saved Plaid credentials via the in-app setup screen. */
     val isConfigured: Boolean
@@ -145,7 +147,12 @@ class PlaidRepository @Inject constructor(
                 )
             )
             val upserts = (resp.added + resp.modified).map { it.toEntity(itemId) }
-            if (upserts.isNotEmpty()) transactionDao.upsertAll(upserts)
+            if (upserts.isNotEmpty()) {
+                transactionDao.upsertAll(upserts)
+                // Auto-log matching transactions against any statement
+                // credits attached to the affected card.
+                statementCreditAutoMatcher.matchTransactions(upserts)
+            }
             val removedIds = resp.removed.map { it.transactionId }
             if (removedIds.isNotEmpty()) transactionDao.deleteByIds(removedIds)
             totalAdded += resp.added.size

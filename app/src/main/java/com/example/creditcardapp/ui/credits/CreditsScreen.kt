@@ -195,6 +195,13 @@ private fun CreditRow(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    if (credit.autoTrack && (credit.matchPattern != null || credit.matchCategory != null)) {
+                        Text(
+                            "Auto-tracked",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
                 IconButton(onClick = { menuOpen = true }) {
                     Icon(Icons.Outlined.MoreVert, contentDescription = "More")
@@ -298,6 +305,9 @@ private fun CreditEditorDialog(
     var period by remember { mutableStateOf(initial?.periodKind ?: CreditPeriod.ANNUAL) }
     var category by remember { mutableStateOf(initial?.category ?: CreditCategory.OTHER) }
     var notes by remember { mutableStateOf(initial?.notes.orEmpty()) }
+    var matchPattern by remember { mutableStateOf(initial?.matchPattern.orEmpty()) }
+    var matchCategory by remember { mutableStateOf(initial?.matchCategory.orEmpty()) }
+    var autoTrack by remember { mutableStateOf(initial?.autoTrack ?: true) }
     var cardId by remember { mutableStateOf(initial?.cardId ?: 0L) }
     var periodMenu by remember { mutableStateOf(false) }
     var categoryMenu by remember { mutableStateOf(false) }
@@ -418,6 +428,42 @@ private fun CreditEditorDialog(
                     onValueChange = { notes = it },
                     label = { Text("Notes (optional)") },
                 )
+
+                // --- Auto-tracking ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Auto-track", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Log matching Plaid transactions automatically",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = autoTrack,
+                        onCheckedChange = { autoTrack = it },
+                    )
+                }
+                if (autoTrack) {
+                    OutlinedTextField(
+                        value = matchPattern,
+                        onValueChange = { matchPattern = it },
+                        label = { Text("Match merchants (e.g. uber|lyft)") },
+                        supportingText = { Text("Pipe-separated. Case-insensitive substring match.") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = matchCategory,
+                        onValueChange = { matchCategory = it.uppercase() },
+                        label = { Text("Match Plaid category (e.g. TRAVEL)") },
+                        supportingText = { Text("Primary PFC. Leave blank to skip.") },
+                        singleLine = true,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -436,6 +482,9 @@ private fun CreditEditorDialog(
                         periodKind = period,
                         category = category,
                         notes = notes.ifBlank { null },
+                        matchPattern = matchPattern.trim().ifBlank { null },
+                        matchCategory = matchCategory.trim().ifBlank { null },
+                        autoTrack = autoTrack,
                     )
                     onSave(saved)
                 },

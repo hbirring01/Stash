@@ -57,9 +57,28 @@ interface StatementCreditDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUsage(entity: StatementCreditUsageEntity): Long
 
+    /**
+     * Auto-tracker insert: IGNORE on conflict (the unique index on
+     * (creditId, transactionId) blocks duplicates). Returns the new row id,
+     * or -1 if the row was a duplicate and skipped.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertUsageIfNew(entity: StatementCreditUsageEntity): Long
+
+    @Query("SELECT * FROM statement_credit_usages WHERE id = :id")
+    suspend fun getUsage(id: Long): StatementCreditUsageEntity?
+
     @Query("DELETE FROM statement_credit_usages WHERE id = :id")
     suspend fun deleteUsageById(id: Long)
 
     @Query("DELETE FROM statement_credit_usages WHERE creditId = :creditId")
     suspend fun deleteUsagesForCredit(creditId: Long)
+
+    // --- Dismissed matches ---
+
+    @Query("SELECT transactionId FROM dismissed_credit_matches WHERE creditId = :creditId")
+    suspend fun dismissedTransactionIds(creditId: Long): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertDismissed(entity: DismissedCreditMatchEntity)
 }
