@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.creditcardapp.ui.list.CardListScreen
+import com.example.creditcardapp.ui.credits.CreditsScreen
 import com.example.creditcardapp.ui.offers.OffersScreen
 import com.example.creditcardapp.ui.rewards.RewardsMapScreen
 import com.example.creditcardapp.ui.rewards.hub.RewardsHubScreen
@@ -57,6 +59,7 @@ private val HomeTabs = listOf(
     HomeTab("Map", Icons.Outlined.Map),
     HomeTab("Rewards", Icons.Outlined.EmojiEvents),
     HomeTab("Offers", Icons.Outlined.LocalOffer),
+    HomeTab("Credits", Icons.Outlined.Savings),
     HomeTab("Settings", Icons.Outlined.Settings),
 )
 
@@ -136,7 +139,11 @@ fun HomeScreen(
                     onBack = {},
                     showBack = false,
                 )
-                4 -> SettingsScreen(
+                4 -> CreditsScreen(
+                    onBack = {},
+                    showBack = false,
+                )
+                5 -> SettingsScreen(
                     onOpenPlaidSetup = onOpenPlaidSetup,
                 )
             }

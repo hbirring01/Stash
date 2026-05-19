@@ -10,8 +10,10 @@ import androidx.room.RoomDatabase
         RewardBalanceEntity::class,
         RotatingCategoryEntity::class,
         OfferEntity::class,
+        StatementCreditEntity::class,
+        StatementCreditUsageEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,6 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun rewardBalanceDao(): RewardBalanceDao
     abstract fun rotatingCategoryDao(): RotatingCategoryDao
     abstract fun offerDao(): OfferDao
+    abstract fun statementCreditDao(): StatementCreditDao
 
     companion object {
         const val DB_NAME = "creditcard.db"

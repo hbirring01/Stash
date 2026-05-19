@@ -10,9 +10,11 @@ import com.example.creditcardapp.data.local.CreditCardDao
 import com.example.creditcardapp.data.local.DatabaseKeyStore
 import com.example.creditcardapp.data.local.MIGRATION_4_5
 import com.example.creditcardapp.data.local.MIGRATION_5_6
+import com.example.creditcardapp.data.local.MIGRATION_6_7
 import com.example.creditcardapp.data.local.OfferDao
 import com.example.creditcardapp.data.local.RewardBalanceDao
 import com.example.creditcardapp.data.local.RotatingCategoryDao
+import com.example.creditcardapp.data.local.StatementCreditDao
 import com.example.creditcardapp.data.local.TransactionDao
 import dagger.Module
 import dagger.Provides
@@ -56,7 +58,7 @@ object DatabaseModule {
             // Explicit migrations preserve user data across upgrades. Fall back to
             // destructive wipe only when no migration path is available (e.g. unknown
             // version coming from a much older install) or on downgrade.
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
         if (BuildConfig.DEBUG) builder.addCallback(DebugSeed)
@@ -77,6 +79,9 @@ object DatabaseModule {
 
     @Provides
     fun provideOfferDao(db: AppDatabase): OfferDao = db.offerDao()
+
+    @Provides
+    fun provideStatementCreditDao(db: AppDatabase): StatementCreditDao = db.statementCreditDao()
 
     private object DebugSeed : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
@@ -162,6 +167,27 @@ object DatabaseModule {
                 arrayOf("shell", "Shell", "Chase", null, "POINTS_MULT", 3.0, null, 0.0, plus30d, null, "CURATED", chaseUri, "3× points at Shell gas stations"),
             )
             offers.forEach { db.execSQL(offerSql, it) }
+
+            // Seed common statement credits on the Sapphire (cardId 1) and
+            // Platinum (cardId 3) sample cards so the Credits screen has
+            // something to show on first launch.
+            //
+            // (cardId, name, amountDollars, periodKind, periodStartMonth,
+            //  periodStartDay, category, notes, source, createdAt)
+            val creditSql = """
+                INSERT INTO statement_credits
+                  (cardId, name, amountDollars, periodKind, periodStartMonth,
+                   periodStartDay, category, notes, source, createdAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent()
+            val sampleCredits = listOf(
+                arrayOf(1L, "Travel Credit", 300.0, "ANNUAL", 1, 1, "TRAVEL", "Auto-applies to any travel charge", "CURATED", now),
+                arrayOf(3L, "Hotel Credit", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Fine Hotels + Resorts and The Hotel Collection", "CURATED", now),
+                arrayOf(3L, "Uber Cash", 200.0, "ANNUAL", 1, 1, "RIDESHARE", "Monthly $15 / December $35 Uber Cash", "CURATED", now),
+                arrayOf(3L, "Airline Incidental", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Select one airline at start of year", "CURATED", now),
+                arrayOf(3L, "Digital Entertainment", 240.0, "ANNUAL", 1, 1, "ENTERTAINMENT", "Disney+ / Hulu / NYT / WSJ etc.", "CURATED", now),
+            )
+            sampleCredits.forEach { db.execSQL(creditSql, it) }
         }
     }
 }

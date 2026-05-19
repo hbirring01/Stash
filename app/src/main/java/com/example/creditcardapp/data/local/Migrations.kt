@@ -80,3 +80,40 @@ val MIGRATION_5_6: Migration = object : Migration(5, 6) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_offers_expiresAt` ON `offers` (`expiresAt`)")
     }
 }
+
+/**
+ * v6 → v7 migration. Adds the `statement_credits` and `statement_credit_usages`
+ * tables for tracking recurring per-card statement credits (Amex Platinum
+ * hotel / Uber Cash / airline incidental, CSR travel, Amex Gold dining, etc.)
+ * and their per-period usage history.
+ */
+val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `statement_credits` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`cardId` INTEGER NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`amountDollars` REAL NOT NULL, " +
+                "`periodKind` TEXT NOT NULL, " +
+                "`periodStartMonth` INTEGER NOT NULL DEFAULT 1, " +
+                "`periodStartDay` INTEGER NOT NULL DEFAULT 1, " +
+                "`category` TEXT NOT NULL DEFAULT 'OTHER', " +
+                "`notes` TEXT, " +
+                "`source` TEXT NOT NULL DEFAULT 'MANUAL', " +
+                "`createdAt` INTEGER NOT NULL)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_statement_credits_cardId` ON `statement_credits` (`cardId`)")
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `statement_credit_usages` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`creditId` INTEGER NOT NULL, " +
+                "`amountDollars` REAL NOT NULL, " +
+                "`usedAt` INTEGER NOT NULL, " +
+                "`description` TEXT)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_statement_credit_usages_creditId` ON `statement_credit_usages` (`creditId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_statement_credit_usages_usedAt` ON `statement_credit_usages` (`usedAt`)")
+    }
+}
