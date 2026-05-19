@@ -52,7 +52,10 @@ data class FsqPlace(
 
 @Serializable
 data class FsqCategory(
-    val id: Int,
+    // The new Foursquare Places API omits `id` on some categories (returning
+    // only `name`/`short_name`), so make it optional to avoid hard failures
+    // that would otherwise abort the entire `nearby` parse.
+    val id: Int? = null,
     val name: String,
     @SerialName("short_name") val shortName: String? = null,
 )
