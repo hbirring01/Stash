@@ -17,6 +17,10 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.7.3
+
+- 🐛 **Foursquare parse fix** — categories without an `id` field no longer abort the nearby fetch with `Field 'id' is required for type … FsqCategory`. Fixes the "businesses pop up then disappear" regression in v1.7.2.
+
 ## What's new in v1.7.2
 
 - 🌐 **Multi-mirror Overpass fallback** — when the primary mirror (kumi.systems) is slow or down, the app now automatically tries the official `overpass-api.de` and `overpass.openstreetmap.fr` mirrors before giving up. Fixes "no businesses found" on the Rewards map.
