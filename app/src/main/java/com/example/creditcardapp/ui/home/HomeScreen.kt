@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.creditcardapp.ui.list.CardListScreen
 import com.example.creditcardapp.ui.credits.CreditsScreen
@@ -96,7 +97,17 @@ fun HomeScreen(
                             scope.launch { pagerState.animateScrollToPage(index) }
                         },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        label = {
+                            // With 6 tabs each cell is narrow; force the label
+                            // to stay on one line so "Rewards" doesn't break
+                            // into "Reward" + "s".
+                            Text(
+                                tab.label,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
                             selectedTextColor = MaterialTheme.colorScheme.onSurface,
