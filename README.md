@@ -17,6 +17,24 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.6.0
+
+- 🤖 **Auto-tracked statement credits** — credits now match against your Plaid transactions automatically. Each credit gets a merchant pattern (e.g. `uber|lyft`) and/or a Plaid category (e.g. `TRAVEL`); matching charges are logged on the fly (capped at the remaining amount) so the progress bar moves without manual entry.
+- 🔁 **Backfill on save** — editing a credit immediately scans existing transactions in the current period so newly added rules catch up without waiting for the next sync.
+- 🚫 **Sticky dismissals** — deleting an auto-logged usage records a dismissal so the next sync won't bring it back.
+- 🌱 **Smart seed rules** — sample credits ship with sensible defaults (Uber Cash → "uber", Hotel → major chains, Airline → major carriers, Digital Entertainment → streaming providers).
+- 🗄️ **Schema v8** — adds `matchPattern`/`matchCategory`/`autoTrack` to credits, `transactionId`/`source` to usages, a unique `(creditId, transactionId)` index, and a new `dismissed_credit_matches` table. Migration `7→8` is included; no data loss.
+
+## What's new in v1.5.1
+
+- 🧷 **One-line bottom-tab labels** — "Rewards" no longer wraps to "Reward" + "s" on narrower devices. All tab labels are now single-line with ellipsis overflow.
+
+## What's new in v1.5.0
+
+- 💰 **Statement Credit Tracker** — track recurring perks like Amex Platinum's $200 hotel credit or Chase Sapphire Reserve's $300 travel credit. Each credit has a period (monthly / quarterly / semi-annual / annual), an amount, and a running progress bar against logged usages.
+- 🧾 **Per-credit usage history** — log charges manually with merchant, amount, and date; see total used vs. remaining in the current period.
+- 🆕 **Dedicated Credits tab** in the bottom navigation.
+
 ## What's new in v1.4.3
 
 - 📸 **Refreshed screenshots** in the README — fresh captures of the new Rewards / Offers / Wallet / Settings screens on a Pixel API 34 emulator.
