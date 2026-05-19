@@ -167,3 +167,24 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("UPDATE statement_credits SET matchPattern = 'disney|hulu|nytimes|wall street journal|peacock|sirius' WHERE name = 'Digital Entertainment' AND matchPattern IS NULL")
     }
 }
+
+/**
+ * v9 — AI Assist cache.
+ *
+ * Adds `ai_match_cache(creditId, merchantNorm)` so repeated transactions from
+ * the same normalized merchant string don't burn LLM quota across syncs.
+ * No data migration — the cache rebuilds itself as transactions come in.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ai_match_cache` (" +
+                "`creditId` INTEGER NOT NULL, " +
+                "`merchantNorm` TEXT NOT NULL, " +
+                "`matched` INTEGER NOT NULL, " +
+                "`modelVersion` TEXT NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`creditId`, `merchantNorm`))"
+        )
+    }
+}

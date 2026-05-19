@@ -13,8 +13,9 @@ import androidx.room.RoomDatabase
         StatementCreditEntity::class,
         StatementCreditUsageEntity::class,
         DismissedCreditMatchEntity::class,
+        AiMatchCacheEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,6 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun rotatingCategoryDao(): RotatingCategoryDao
     abstract fun offerDao(): OfferDao
     abstract fun statementCreditDao(): StatementCreditDao
+    abstract fun aiMatchCacheDao(): AiMatchCacheDao
 
     companion object {
         const val DB_NAME = "creditcard.db"

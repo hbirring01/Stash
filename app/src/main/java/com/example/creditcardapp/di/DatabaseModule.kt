@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.creditcardapp.BuildConfig
+import com.example.creditcardapp.data.local.AiMatchCacheDao
 import com.example.creditcardapp.data.local.AppDatabase
 import com.example.creditcardapp.data.local.CreditCardDao
 import com.example.creditcardapp.data.local.DatabaseKeyStore
@@ -12,6 +13,7 @@ import com.example.creditcardapp.data.local.MIGRATION_4_5
 import com.example.creditcardapp.data.local.MIGRATION_5_6
 import com.example.creditcardapp.data.local.MIGRATION_6_7
 import com.example.creditcardapp.data.local.MIGRATION_7_8
+import com.example.creditcardapp.data.local.MIGRATION_8_9
 import com.example.creditcardapp.data.local.OfferDao
 import com.example.creditcardapp.data.local.RewardBalanceDao
 import com.example.creditcardapp.data.local.RotatingCategoryDao
@@ -59,7 +61,7 @@ object DatabaseModule {
             // Explicit migrations preserve user data across upgrades. Fall back to
             // destructive wipe only when no migration path is available (e.g. unknown
             // version coming from a much older install) or on downgrade.
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
         if (BuildConfig.DEBUG) builder.addCallback(DebugSeed)
@@ -83,6 +85,9 @@ object DatabaseModule {
 
     @Provides
     fun provideStatementCreditDao(db: AppDatabase): StatementCreditDao = db.statementCreditDao()
+
+    @Provides
+    fun provideAiMatchCacheDao(db: AppDatabase): AiMatchCacheDao = db.aiMatchCacheDao()
 
     private object DebugSeed : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {

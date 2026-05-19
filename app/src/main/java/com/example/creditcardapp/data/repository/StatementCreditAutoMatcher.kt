@@ -1,5 +1,7 @@
 package com.example.creditcardapp.data.repository
 
+import com.example.creditcardapp.data.ai.AiBudget
+import com.example.creditcardapp.data.ai.AiMatchClient
 import com.example.creditcardapp.data.local.CreditCardDao
 import com.example.creditcardapp.data.local.DismissedCreditMatchEntity
 import com.example.creditcardapp.data.local.StatementCreditDao
@@ -32,7 +34,11 @@ class StatementCreditAutoMatcher @Inject constructor(
     private val cardDao: CreditCardDao,
     private val creditDao: StatementCreditDao,
     private val transactionDao: TransactionDao,
+    private val aiMatchClient: AiMatchClient,
 ) {
+    /** Soft cap on LLM calls per [matchTransactions] invocation so a Plaid
+     *  resync of a year of history can't burn 1000 API calls in one go. */
+    private val aiBudgetPerBatch = 25
     /**
      * Scan [transactions] (typically the freshly upserted batch from Plaid)
      * and auto-log any matching credit usage.
@@ -48,6 +54,7 @@ class StatementCreditAutoMatcher @Inject constructor(
         if (accountIdToCardId.isEmpty()) return
 
         val zone = ZoneId.systemDefault()
+        val budget = AiBudget(aiBudgetPerBatch)
 
         // Group by card and process credits per card.
         val byCard = transactions
@@ -63,7 +70,7 @@ class StatementCreditAutoMatcher @Inject constructor(
             if (credits.isEmpty()) continue
 
             for (credit in credits) {
-                processCredit(credit, txs, zone)
+                processCredit(credit, txs, zone, budget)
             }
         }
     }
@@ -72,6 +79,7 @@ class StatementCreditAutoMatcher @Inject constructor(
         credit: StatementCredit,
         candidateTxs: List<TransactionEntity>,
         zone: ZoneId,
+        budget: AiBudget = AiBudget(0),
     ) {
         val window = credit.periodWindow()
         val dismissed = creditDao.dismissedTransactionIds(credit.id).toHashSet()
@@ -89,7 +97,18 @@ class StatementCreditAutoMatcher @Inject constructor(
             if (txMillis !in window) continue
 
             val displayName = tx.merchantName ?: tx.name
-            if (!credit.matchesTransaction(displayName, tx.categoryPrimary)) continue
+
+            // Tier 1: deterministic rule (pattern OR category) — free, instant.
+            // Tier 2: LLM fallback — only when literal rules miss AND user has
+            // AI Assist enabled AND we're under the per-batch budget. Cache hits
+            // don't consume the budget.
+            val literalMatch = credit.matchesTransaction(displayName, tx.categoryPrimary)
+            if (!literalMatch) {
+                val aiVerdict = aiMatchClient.matchesCredit(
+                    credit, displayName, tx.categoryPrimary, budget
+                )
+                if (aiVerdict != true) continue
+            }
 
             // Plaid posts credit-card spend as positive amounts; ignore
             // refunds (negative) which would otherwise eat into the credit.
@@ -106,7 +125,7 @@ class StatementCreditAutoMatcher @Inject constructor(
                 usedAt = txMillis,
                 description = displayName,
                 transactionId = tx.transactionId,
-                source = "AUTO",
+                source = if (literalMatch) "AUTO" else "AI",
             )
             val newId = creditDao.insertUsageIfNew(row)
             if (newId != -1L) {
@@ -150,7 +169,11 @@ class StatementCreditAutoMatcher @Inject constructor(
             .toString()
 
         val txs = transactionDao.getByAccountSince(accountId, startDate)
-        processCredit(credit, txs, zone)
+        // Backfill is user-initiated (Save in editor) so we allow a small AI
+        // budget; rule changes also wipe the AI cache for this credit so any
+        // previously-cached verdicts using stale rules are re-asked.
+        aiMatchClient.invalidate(credit.id)
+        processCredit(credit, txs, zone, AiBudget(aiBudgetPerBatch))
     }
 }
 

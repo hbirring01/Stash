@@ -17,6 +17,15 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.7.0
+
+- 🤖 **AI Assist for credit matching** — when a Plaid transaction doesn't match a credit's literal rules (`uber`, `TRAVEL`, etc.), an opt-in LLM is asked one short question: *"does this merchant qualify?"* Catches obfuscated descriptors like `SQ *UBR EATS NYC`, `PAYPAL *DISNEY PLUS`, `TST* MARRIOTT BONVOY` that pattern rules miss.
+- 🔑 **Bring-your-own free key** — defaults to **Google Gemini 2.0 Flash** (1,500 req/day free at `aistudio.google.com`). Also supports **Groq**, **OpenRouter**, and **Custom** (Ollama / self-hosted) via an OpenAI-compatible client.
+- 💾 **Per-merchant cache** — each normalized merchant string is asked about at most once per credit; weekly Uber rides hit the cache, not the API.
+- 🪙 **Per-batch budget** — soft cap of 25 LLM calls per Plaid sync to keep free tiers comfortable even on a year-of-history backfill.
+- 🔒 **Off by default, encrypted at rest** — API key lives in the same `EncryptedSharedPreferences` (AES-256-GCM, Android Keystore) as the Plaid and Foursquare keys. Settings only ever shows status, never the key.
+- 🗄️ **Schema v9** — adds `ai_match_cache(creditId, merchantNorm)`. Migration `8→9` is included; no data loss.
+
 ## What's new in v1.6.0
 
 - 🤖 **Auto-tracked statement credits** — credits now match against your Plaid transactions automatically. Each credit gets a merchant pattern (e.g. `uber|lyft`) and/or a Plaid category (e.g. `TRAVEL`); matching charges are logged on the fly (capped at the remaining amount) so the progress bar moves without manual entry.
