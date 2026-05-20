@@ -30,11 +30,11 @@ fun localProp(name: String, default: String = "") =
         .trim('"', '\'')
 
 android {
-    namespace = "com.example.creditcardapp"
+    namespace = "com.app.stash.android"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.creditcardapp"
+        applicationId = "com.app.stash.android"
         minSdk = 26
         targetSdk = 34
         // versionCode/versionName can be overridden by CI via env vars

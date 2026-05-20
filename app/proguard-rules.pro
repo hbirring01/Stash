@@ -9,11 +9,11 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
--keep,includedescriptorclasses class com.example.creditcardapp.**$$serializer { *; }
--keepclassmembers class com.example.creditcardapp.** {
+-keep,includedescriptorclasses class com.app.stash.android.**$$serializer { *; }
+-keepclassmembers class com.app.stash.android.** {
     *** Companion;
 }
--keepclasseswithmembers class com.example.creditcardapp.** {
+-keepclasseswithmembers class com.app.stash.android.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 
