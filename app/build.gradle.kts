@@ -53,14 +53,14 @@ android {
     }
 
     signingConfigs {
-        // Stable signing key committed to the repo (app/upgrade.keystore).
-        // This is NOT a Play Store key — purpose is solely to keep the APK
-        // signature consistent across releases so installs preserve user data.
+        // Stable signing key for consistent APK signatures across releases.
+        // Credentials are read from local.properties (not committed) or
+        // environment variables so they never appear in version control.
         create("upgrade") {
-            storeFile = file("upgrade.keystore")
-            storePassword = "stashapp"
-            keyAlias = "upgrade"
-            keyPassword = "stashapp"
+            storeFile = file(localProp("SIGNING_STORE_FILE", "upgrade.keystore"))
+            storePassword = localProp("SIGNING_STORE_PASSWORD")
+            keyAlias = localProp("SIGNING_KEY_ALIAS", "upgrade")
+            keyPassword = localProp("SIGNING_KEY_PASSWORD")
         }
     }
 
