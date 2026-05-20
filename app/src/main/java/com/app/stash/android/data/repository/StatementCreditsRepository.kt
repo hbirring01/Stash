@@ -64,16 +64,42 @@ class StatementCreditsRepository @Inject constructor(
     /**
      * Removes a usage row. If it was auto-logged (source=AUTO or AI, has a
      * transactionId), we also record a dismissal so the auto-matcher won't
-     * re-create it on the next Plaid sync.
+     * re-create it on the next Plaid sync. Returns the deleted usage so the
+     * UI can offer an undo before fully committing.
      */
-    suspend fun deleteUsage(id: Long) {
-        val existing = dao.getUsage(id)
+    suspend fun deleteUsage(id: Long): StatementCreditUsage? {
+        val existing = dao.getUsage(id) ?: return null
         dao.deleteUsageById(id)
-        if (existing != null &&
-            (existing.source == "AUTO" || existing.source == "AI") &&
+        if ((existing.source == "AUTO" || existing.source == "AI") &&
             existing.transactionId != null
         ) {
             autoMatcher.dismiss(existing.creditId, existing.transactionId)
         }
+        return existing.toDomain()
+    }
+
+    /**
+     * Re-inserts a previously-deleted usage (preserving its original id,
+     * timestamp, and source). For AUTO/AI rows, also removes the dismissal
+     * recorded during [deleteUsage] so the matcher's state is consistent.
+     */
+    suspend fun restoreUsage(usage: StatementCreditUsage) {
+        dao.insertUsage(usage.toEntity())
+        if ((usage.source == "AUTO" || usage.source == "AI") &&
+            usage.transactionId != null
+        ) {
+            autoMatcher.undismiss(usage.creditId, usage.transactionId)
+        }
+    }
+
+    /**
+     * Manually re-run the auto-matcher against a single credit's card history.
+     * Useful when the user wants to backfill the current period without
+     * waiting for the next Plaid sync (e.g. after editing match rules or
+     * after a transaction posts late).
+     */
+    suspend fun rescanCredit(creditId: Long) {
+        val credit = dao.get(creditId)?.toDomain() ?: return
+        autoMatcher.rescanForCredit(credit)
     }
 }

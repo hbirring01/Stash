@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -38,12 +39,16 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +80,32 @@ fun CreditsScreen(
     var editing by remember { mutableStateOf<StatementCredit?>(null) }
     var loggingFor by remember { mutableStateOf<CreditUiState?>(null) }
     var addingNew by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Drain one-shot events from the VM into the snackbar host. We collect
+    // here (not in CreditRow) so events survive row recycling and so a single
+    // Undo doesn't depend on a particular row still being composed.
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is CreditsUiEvent.UsageDeleted -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Usage deleted",
+                        actionLabel = "Undo",
+                        // Default duration; Material's SHORT (~4s) is too quick
+                        // for users to react, LONG (~10s) is the right call.
+                        duration = androidx.compose.material3.SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.restoreUsage(event.usage)
+                    }
+                }
+                is CreditsUiEvent.RescanFinished -> {
+                    snackbarHostState.showSnackbar("Rescanned ${event.creditName}")
+                }
+            }
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -93,6 +124,7 @@ fun CreditsScreen(
                 ),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { addingNew = true }) {
                 Icon(Icons.Outlined.Add, contentDescription = "Add credit")
@@ -129,6 +161,7 @@ fun CreditsScreen(
                     onLog = { loggingFor = state },
                     onEdit = { editing = state.credit },
                     onDelete = { viewModel.deleteCredit(state.credit.id) },
+                    onRescan = { viewModel.rescanCredit(state.credit.id, state.credit.name) },
                     observeUsages = {
                         viewModel.observeUsages(state.credit.id, state.credit.periodWindow())
                     },
@@ -176,6 +209,7 @@ private fun CreditRow(
     onLog: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onRescan: () -> Unit,
     observeUsages: () -> Flow<List<StatementCreditUsage>>,
     onDeleteUsage: (Long) -> Unit,
 ) {
@@ -234,6 +268,17 @@ private fun CreditRow(
                         text = { Text("Edit") },
                         onClick = { menuOpen = false; onEdit() },
                     )
+                    // Only useful for auto-tracked credits — manual credits have
+                    // no rules for the matcher to run.
+                    if (credit.autoTrack &&
+                        (credit.matchPattern != null || credit.matchCategory != null)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Rescan") },
+                            leadingIcon = { Icon(Icons.Outlined.Refresh, contentDescription = null) },
+                            onClick = { menuOpen = false; onRescan() },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text("Delete") },
                         leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },

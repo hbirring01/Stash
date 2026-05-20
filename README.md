@@ -17,6 +17,11 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.7.6
+
+- ↩️ **Undo on usage delete** — deleting a statement-credit usage now shows a "Usage deleted" snackbar with an **Undo** action. Undo restores the original row (preserving its `MANUAL` / `AUTO` / `AI` source and timestamp) and, for auto-logged rows, removes the dismissal so the matcher's state stays consistent.
+- 🔁 **Manual rescan per credit** — the credit row's overflow menu now has a **Rescan** action for auto-tracked credits. Re-runs `StatementCreditAutoMatcher.rescanForCredit` against that card's transaction history without waiting for the next Plaid sync — useful after editing match rules or when a transaction posts late.
+
 ## What's new in v1.7.5
 
 - 🗝️ **Foursquare onboarding banner** — when the Rewards map empty state shows up and you haven't configured a Foursquare API key yet, a "Coverage looks thin here" card explains why (OSM-only is sparse in suburbs/rural areas) and offers an **Open Settings** chip that deep-links straight to the Settings page so you can paste a free-tier key.
@@ -27,10 +32,6 @@ Android app that tells you **which credit card to swipe at the business in front
 - 🧠 **AI cache management** — the AI Assist dialog now shows how many merchant verdicts are cached and lets you wipe them with one tap. Handy after switching providers or when you think a cached "NO" was wrong; next sync will re-ask the model within the per-batch budget.
 - 🩹 **Fixed broken `app_logo.xml`** that was crashing the build (SVG-style `<rect>` elements aren't supported by Android vector drawables — converted to `<path>` with proper rounded-rect path data).
 - 🩹 **Fixed missing imports in `BiometricGate.kt`** for `R`, `painterResource`, and `Modifier.width` so the lock screen logo compiles.
-
-## What's new in v1.7.3
-
-- 🐛 **Foursquare parse fix** — categories without an `id` field no longer abort the nearby fetch with `Field 'id' is required for type … FsqCategory`. Fixes the "businesses pop up then disappear" regression in v1.7.2.
 
 ## Features
 

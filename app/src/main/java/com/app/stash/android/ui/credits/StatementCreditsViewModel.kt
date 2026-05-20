@@ -9,6 +9,7 @@ import com.app.stash.android.domain.model.StatementCredit
 import com.app.stash.android.domain.model.StatementCreditUsage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,6 +36,18 @@ data class CreditUiState(
     val percentUsed: Float
         get() = if (credit.amountDollars <= 0.0) 0f
         else (usedInPeriod / credit.amountDollars).toFloat().coerceIn(0f, 1f)
+}
+
+/**
+ * One-shot UI events emitted by [StatementCreditsViewModel]. Collected by the
+ * screen to drive transient surfaces (Snackbar) without polluting persisted
+ * state. Buffered (UNLIMITED) so deletes during config change aren't lost.
+ */
+sealed interface CreditsUiEvent {
+    /** A usage row was deleted; screen should offer an Undo. */
+    data class UsageDeleted(val usage: StatementCreditUsage) : CreditsUiEvent
+    /** A manual rescan finished. */
+    data class RescanFinished(val creditName: String) : CreditsUiEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -103,6 +117,29 @@ class StatementCreditsViewModel @Inject constructor(
     }
 
     fun deleteUsage(id: Long) {
-        viewModelScope.launch { repository.deleteUsage(id) }
+        viewModelScope.launch {
+            val deleted = repository.deleteUsage(id) ?: return@launch
+            _events.trySend(CreditsUiEvent.UsageDeleted(deleted))
+        }
     }
+
+    /** Re-inserts a usage previously removed via [deleteUsage]. */
+    fun restoreUsage(usage: StatementCreditUsage) {
+        viewModelScope.launch { repository.restoreUsage(usage) }
+    }
+
+    /**
+     * Manually re-run the auto-matcher against [creditId]'s card history.
+     * Emits [CreditsUiEvent.RescanFinished] when done so the screen can
+     * confirm to the user (the progress bar updates reactively via Room).
+     */
+    fun rescanCredit(creditId: Long, creditName: String) {
+        viewModelScope.launch {
+            repository.rescanCredit(creditId)
+            _events.trySend(CreditsUiEvent.RescanFinished(creditName))
+        }
+    }
+
+    private val _events = Channel<CreditsUiEvent>(Channel.UNLIMITED)
+    val events: Flow<CreditsUiEvent> = _events.receiveAsFlow()
 }

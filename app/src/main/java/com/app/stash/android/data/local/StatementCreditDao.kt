@@ -81,4 +81,12 @@ interface StatementCreditDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertDismissed(entity: DismissedCreditMatchEntity)
+
+    /**
+     * Removes a previously-recorded dismissal so the auto-matcher will once
+     * again log usage for this (creditId, transactionId) pair. Used to undo
+     * a usage deletion before the user's window expires.
+     */
+    @Query("DELETE FROM dismissed_credit_matches WHERE creditId = :creditId AND transactionId = :transactionId")
+    suspend fun deleteDismissed(creditId: Long, transactionId: String)
 }

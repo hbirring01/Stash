@@ -147,6 +147,15 @@ class StatementCreditAutoMatcher @Inject constructor(
     }
 
     /**
+     * Reverses a prior [dismiss], allowing the matcher to re-log the usage on
+     * the next sync. Used when the user undoes a usage deletion before the
+     * snackbar window expires.
+     */
+    suspend fun undismiss(creditId: Long, transactionId: String) {
+        creditDao.deleteDismissed(creditId, transactionId)
+    }
+
+    /**
      * Backfill: rescan all existing transactions on the card linked to
      * [credit] against just that credit. Useful right after the user adds
      * or edits a credit's match rules so the progress bar reflects the
