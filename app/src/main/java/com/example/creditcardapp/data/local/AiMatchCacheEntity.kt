@@ -46,6 +46,9 @@ interface AiMatchCacheDao {
 
     @Query("DELETE FROM ai_match_cache")
     suspend fun clearAll()
+
+    @Query("SELECT COUNT(*) FROM ai_match_cache")
+    fun observeCount(): kotlinx.coroutines.flow.Flow<Int>
 }
 
 /**

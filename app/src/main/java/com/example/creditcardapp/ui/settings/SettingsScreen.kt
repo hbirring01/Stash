@@ -72,6 +72,7 @@ fun SettingsScreen(
     val hasFoursquareKey by apiKeyViewModel.hasFoursquareKey.collectAsStateWithLifecycle()
     val hasPlaidKeys by plaidKeyViewModel.hasPlaidKeys.collectAsStateWithLifecycle()
     val aiState by aiSettingsViewModel.state.collectAsStateWithLifecycle()
+    val aiCacheCount by aiSettingsViewModel.cacheCount.collectAsStateWithLifecycle()
 
     var showFoursquareDialog by remember { mutableStateOf(false) }
     var showAiDialog by remember { mutableStateOf(false) }
@@ -258,10 +259,12 @@ fun SettingsScreen(
     if (showAiDialog) {
         AiSettingsDialog(
             state = aiState,
+            cacheCount = aiCacheCount,
             onSave = { provider, key, baseUrl, model ->
                 aiSettingsViewModel.save(provider, key, baseUrl, model)
             },
             onClear = { aiSettingsViewModel.clear() },
+            onClearCache = { aiSettingsViewModel.clearCache() },
             onDismiss = { showAiDialog = false },
         )
     }
@@ -403,8 +406,10 @@ private fun ThemeIcon(icon: ImageVector) {
 @Composable
 private fun AiSettingsDialog(
     state: AiConfigState,
+    cacheCount: Int,
     onSave: (AiProvider, String, String?, String?) -> Unit,
     onClear: () -> Unit,
+    onClearCache: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var provider by remember(state) { mutableStateOf(state.provider) }
@@ -497,6 +502,29 @@ private fun AiSettingsDialog(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                // Cache management. Only meaningful once the user has actually
+                // exercised the matcher, so hide the row entirely at zero.
+                if (cacheCount > 0) {
+                    Spacer(Modifier.height(16.dp))
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Cached matches",
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                            val suffix = if (cacheCount == 1) "" else "s"
+                            Text(
+                                "$cacheCount merchant verdict$suffix \u2014 reused so the model isn't re-asked.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(onClick = onClearCache) { Text("Clear") }
+                    }
                 }
             }
         },

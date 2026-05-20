@@ -4,31 +4,21 @@
     android:height="80dp"
     android:viewportWidth="120"
     android:viewportHeight="80">
-    <!-- Card background -->
-    <rect
-        android:x="8"
-        android:y="16"
-        android:width="104"
-        android:height="48"
-        android:rx="10"
+    <!-- Card background (rounded rect via path, radius 10) -->
+    <path
+        android:pathData="M18,16 h84 a10,10 0 0 1 10,10 v28 a10,10 0 0 1 -10,10 h-84 a10,10 0 0 1 -10,-10 v-28 a10,10 0 0 1 10,-10 z"
         android:fillColor="#1976D2" />
-    <!-- Stripe -->
-    <rect
-        android:x="8"
-        android:y="28"
-        android:width="104"
-        android:height="8"
+    <!-- Magnetic stripe -->
+    <path
+        android:pathData="M8,28 h104 v8 h-104 z"
         android:fillColor="#1565C0" />
-    <!-- Chip -->
-    <rect
-        android:x="20"
-        android:y="40"
-        android:width="16"
-        android:height="10"
-        android:rx="2"
+    <!-- Chip (rounded rect, radius 2) -->
+    <path
+        android:pathData="M22,40 h12 a2,2 0 0 1 2,2 v6 a2,2 0 0 1 -2,2 h-12 a2,2 0 0 1 -2,-2 v-6 a2,2 0 0 1 2,-2 z"
         android:fillColor="#FFD600" />
     <!-- App initials -->
     <path
         android:pathData="M60,55 l0,-15 l8,0 l0,15 l-8,0 z M72,55 l0,-15 l8,0 l0,15 l-8,0 z"
         android:fillColor="#FFFFFF" />
 </vector>
+

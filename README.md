@@ -17,6 +17,12 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.7.4
+
+- 🧠 **AI cache management** — the AI Assist dialog now shows how many merchant verdicts are cached and lets you wipe them with one tap. Handy after switching providers or when you think a cached "NO" was wrong; next sync will re-ask the model within the per-batch budget.
+- 🩹 **Fixed broken `app_logo.xml`** that was crashing the build (SVG-style `<rect>` elements aren't supported by Android vector drawables — converted to `<path>` with proper rounded-rect path data).
+- 🩹 **Fixed missing imports in `BiometricGate.kt`** for `R`, `painterResource`, and `Modifier.width` so the lock screen logo compiles.
+
 ## What's new in v1.7.3
 
 - 🐛 **Foursquare parse fix** — categories without an `id` field no longer abort the nearby fetch with `Field 'id' is required for type … FsqCategory`. Fixes the "businesses pop up then disappear" regression in v1.7.2.
