@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -113,9 +114,11 @@ private const val SAMPLE_SPEND_DOLLARS = 50.0
 fun RewardsMapScreen(
     onBack: (() -> Unit)? = null,
     isActive: Boolean = true,
+    onOpenSettings: (() -> Unit)? = null,
     viewModel: RewardsMapViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hasFoursquareKey by viewModel.hasFoursquareKey.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // Whenever this page becomes the visible tab in the pager, re-grab the
@@ -402,6 +405,8 @@ fun RewardsMapScreen(
                 EmptyStateBlock(
                     radiusMeters = state.radiusMeters,
                     onExpand = { viewModel.expandSearch() },
+                    showFoursquareCta = !hasFoursquareKey,
+                    onAddFoursquareKey = onOpenSettings,
                 )
             }
 
@@ -816,7 +821,12 @@ private fun PlaceCard(
 // --------------------------- Empty state ---------------------------
 
 @Composable
-private fun EmptyStateBlock(radiusMeters: Int, onExpand: () -> Unit) {
+private fun EmptyStateBlock(
+    radiusMeters: Int,
+    onExpand: () -> Unit,
+    showFoursquareCta: Boolean = false,
+    onAddFoursquareKey: (() -> Unit)? = null,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -840,6 +850,35 @@ private fun EmptyStateBlock(radiusMeters: Int, onExpand: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
+        if (showFoursquareCta && onAddFoursquareKey != null) {
+            Spacer(Modifier.height(16.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Coverage looks thin here",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "We're using OpenStreetMap here, which can be sparse in suburbs and rural areas. " +
+                            "Add a free Foursquare API key in Settings for much richer business data.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    AssistChip(
+                        onClick = onAddFoursquareKey,
+                        label = { Text("Open Settings") },
+                        leadingIcon = { Icon(Icons.Outlined.Key, contentDescription = null) },
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -17,6 +17,11 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
+## What's new in v1.7.5
+
+- 🗝️ **Foursquare onboarding banner** — when the Rewards map empty state shows up and you haven't configured a Foursquare API key yet, a "Coverage looks thin here" card explains why (OSM-only is sparse in suburbs/rural areas) and offers an **Open Settings** chip that deep-links straight to the Settings page so you can paste a free-tier key.
+- 🔁 **AI retry/backoff** — `AiMatchClient` now retries transient `429` (rate-limited) and `503` (overloaded) responses with exponential backoff (500 ms → 1 s → 2 s, up to 3 attempts) and honors any server-provided `Retry-After` header. Most free-tier bursts now resolve silently instead of giving up after one try.
+
 ## What's new in v1.7.4
 
 - 🧠 **AI cache management** — the AI Assist dialog now shows how many merchant verdicts are cached and lets you wipe them with one tap. Handy after switching providers or when you think a cached "NO" was wrong; next sync will re-ask the model within the per-batch budget.

@@ -7,6 +7,7 @@ import com.example.creditcardapp.data.local.normalizeMerchant
 import com.example.creditcardapp.data.preferences.AiSettingsStore
 import com.example.creditcardapp.domain.model.StatementCredit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -128,24 +129,45 @@ class AiMatchClient @Inject constructor(
             .build()
 
         try {
-            http.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    Log.w(TAG, "AI request failed: HTTP ${resp.code}")
-                    return@withContext null
+            // Retry on transient rate-limit (429) and overload (503) responses
+            // with exponential backoff. Most free tiers (Gemini Flash, Groq,
+            // OpenRouter) burst-throttle aggressively; a short backoff usually
+            // turns a 429 into a 200 within a second.
+            var attempt = 0
+            while (true) {
+                val resp = http.newCall(request).execute()
+                val shouldRetry = resp.code == 429 || resp.code == 503
+                if (!shouldRetry || attempt >= MAX_RETRIES) {
+                    resp.use { r ->
+                        if (!r.isSuccessful) {
+                            Log.w(TAG, "AI request failed: HTTP ${r.code}")
+                            return@withContext null
+                        }
+                        val text = r.body?.string().orEmpty()
+                        val parsed = runCatching { json.decodeFromString(ChatResponse.serializer(), text) }
+                            .getOrNull() ?: return@withContext null
+                        val answer = parsed.choices.firstOrNull()?.message?.content
+                            ?.trim()
+                            ?.uppercase()
+                            ?: return@withContext null
+                        return@withContext when {
+                            answer.startsWith("YES") -> true
+                            answer.startsWith("NO") -> false
+                            else -> null
+                        }
+                    }
                 }
-                val text = resp.body?.string().orEmpty()
-                val parsed = runCatching { json.decodeFromString(ChatResponse.serializer(), text) }
-                    .getOrNull() ?: return@withContext null
-                val answer = parsed.choices.firstOrNull()?.message?.content
-                    ?.trim()
-                    ?.uppercase()
-                    ?: return@withContext null
-                when {
-                    answer.startsWith("YES") -> true
-                    answer.startsWith("NO") -> false
-                    else -> null
-                }
+                // Honor server-provided Retry-After (seconds) when present;
+                // otherwise back off exponentially: 500ms, 1s, 2s.
+                val retryAfter = resp.header("Retry-After")?.toLongOrNull()?.times(1000L)
+                resp.close()
+                val delayMs = retryAfter ?: (BASE_BACKOFF_MS shl attempt)
+                Log.w(TAG, "AI ${if (shouldRetry) "throttled" else "errored"} (attempt ${attempt + 1}); backing off ${delayMs}ms")
+                delay(delayMs)
+                attempt++
             }
+            @Suppress("UNREACHABLE_CODE")
+            null
         } catch (t: Throwable) {
             Log.w(TAG, "AI request threw: ${t.message}")
             null
@@ -154,6 +176,8 @@ class AiMatchClient @Inject constructor(
 
     private companion object {
         const val TAG = "AiMatchClient"
+        const val MAX_RETRIES = 3
+        const val BASE_BACKOFF_MS = 500L
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 }

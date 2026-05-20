@@ -114,10 +114,19 @@ class RewardsMapViewModel @Inject constructor(
     private val notificationPreferences: NotificationPreferences,
     private val cardRepository: CreditCardRepository,
     private val rewardsRepository: RewardsRepository,
+    apiKeyStore: com.example.creditcardapp.data.preferences.ApiKeyStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RewardsMapUiState())
     val state: StateFlow<RewardsMapUiState> = _state.asStateFlow()
+
+    /**
+     * Whether the user has configured a Foursquare API key. Drives the
+     * onboarding banner in the empty state — Overpass alone is often sparse in
+     * suburban / rural areas, so prompting for a (free-tier) FSQ key is the
+     * highest-leverage fix when no businesses are found.
+     */
+    val hasFoursquareKey: StateFlow<Boolean> = apiKeyStore.foursquareKeyState
 
     fun load() {
         viewModelScope.launch {
