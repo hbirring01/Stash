@@ -85,6 +85,20 @@ jobs:
           fi
           echo "Computing changelog for range: $RANGE"
 
+          # Detect the one-time applicationId rename that landed in commit
+          # f27a555 (com.example.creditcardapp -> com.app.stash.android).
+          # Show the uninstall-and-reinstall warning only when this TAG ships
+          # under the new id AND PREV still ships under the old one — so that
+          # cherry-picked v1.7.x bugfix tags (which don't contain the rename)
+          # don't get a misleading warning.
+          PRE_RENAME=false
+          RENAME_COMMIT=f27a555038f4e17dcfde7944a454006382e9682e
+          if [ -n "$PREV" ] \
+            && git merge-base --is-ancestor "$RENAME_COMMIT" "$TAG" \
+            && ! git merge-base --is-ancestor "$RENAME_COMMIT" "$PREV"; then
+            PRE_RENAME=true
+          fi
+
           # Group commits by conventional-commit prefix
           feats=$(git log --no-merges --pretty=format:'- %s (%h)' $RANGE | grep -iE '^- (feat|feature)(\(.*\))?:' || true)
           fixes=$(git log --no-merges --pretty=format:'- %s (%h)' $RANGE | grep -iE '^- fix(\(.*\))?:' || true)
@@ -105,7 +119,11 @@ jobs:
             echo "- Size: ${{ steps.apk.outputs.size }}"
             echo "- SHA-256: \`${{ steps.apk.outputs.sha256 }}\`"
             echo ""
-            echo "> Signed with the stable upgrade keystore — installs over previous v1.1+ builds **without wiping data**."
+            if [ "$PRE_RENAME" = "true" ]; then
+              echo "> ⚠️ **Upgrading from ${PREV}?** This release moves to a new package id (\`com.app.stash.android\`, previously \`com.example.creditcardapp\`). Android treats it as a separate app, so you must **uninstall the old app first** (local data will be lost) and install this APK fresh. Subsequent v1.8.0+ updates will install in place without data loss."
+            else
+              echo "> Signed with the stable upgrade keystore — installs over previous v1.8.0+ builds **without wiping data**."
+            fi
             echo ""
             echo "### ✨ What's Changed"
             [ -n "$feats" ]  && { echo ""; echo "#### 🚀 Features";        echo "$feats"; }
