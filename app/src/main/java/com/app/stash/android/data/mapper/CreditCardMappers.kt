@@ -1,7 +1,6 @@
 package com.app.stash.android.data.mapper
 
 import com.app.stash.android.data.local.CreditCardEntity
-import com.app.stash.android.data.remote.dto.CreditCardDto
 import com.app.stash.android.domain.model.CreditCard
 import com.app.stash.android.domain.model.RewardCategory
 import kotlinx.serialization.json.Json
@@ -66,14 +65,4 @@ fun CreditCard.toEntity(): CreditCardEntity = CreditCardEntity(
     signupBonusDeadline = signupBonusDeadline,
 )
 
-fun CreditCardDto.toEntity(): CreditCardEntity = CreditCardEntity(
-    id = id,
-    cardholderName = cardholderName,
-    last4 = last4,
-    brand = brand,
-    expiryMonth = expiryMonth,
-    expiryYear = expiryYear,
-    balance = balance,
-    creditLimit = creditLimit,
-    nickname = nickname
-)
+

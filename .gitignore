@@ -75,3 +75,11 @@ out.txt
 out2.txt
 full.log
 *.log
+
+# Logcat dumps — never commit raw device logs to source
+logcat.txt
+logcat*.txt
+
+# Local Gradle build error dumps
+build.err
+build_output.txt

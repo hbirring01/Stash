@@ -50,7 +50,6 @@ class CardListViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _busy.value = true
-            repository.refreshFromRemote()
             if (plaid.isLinked()) {
                 plaid.sync()
                 _institutionLogo.value = plaid.institutionLogoBase64()

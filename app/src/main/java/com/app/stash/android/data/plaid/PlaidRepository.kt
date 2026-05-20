@@ -36,7 +36,7 @@ class PlaidRepository @Inject constructor(
             LinkTokenCreateRequest(
                 clientId = clientId,
                 secret = secret,
-                clientName = "CreditCardApp",
+                clientName = "StashApp",
                 user = PlaidUser(clientUserId = userId),
             )
         )

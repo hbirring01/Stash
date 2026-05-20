@@ -73,7 +73,7 @@ private fun ThemeMode.resolveDark(): Boolean = when (this) {
 }
 
 @Composable
-fun CreditCardAppTheme(
+fun StashTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,

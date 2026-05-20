@@ -8,5 +8,4 @@ interface CreditCardRepository {
     suspend fun getCard(id: Long): CreditCard?
     suspend fun saveCard(card: CreditCard): Long
     suspend fun deleteCard(id: Long)
-    suspend fun refreshFromRemote(): Result<Unit>
 }

@@ -3,7 +3,6 @@ package com.app.stash.android.data.repository
 import com.app.stash.android.data.local.CreditCardDao
 import com.app.stash.android.data.mapper.toDomain
 import com.app.stash.android.data.mapper.toEntity
-import com.app.stash.android.data.remote.CreditCardApi
 import com.app.stash.android.domain.model.CreditCard
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -13,7 +12,6 @@ import javax.inject.Singleton
 @Singleton
 class CreditCardRepositoryImpl @Inject constructor(
     private val dao: CreditCardDao,
-    private val api: CreditCardApi
 ) : CreditCardRepository {
 
     override fun observeCards(): Flow<List<CreditCard>> =
@@ -27,10 +25,5 @@ class CreditCardRepositoryImpl @Inject constructor(
 
     override suspend fun deleteCard(id: Long) {
         dao.deleteById(id)
-    }
-
-    override suspend fun refreshFromRemote(): Result<Unit> = runCatching {
-        val remote = api.getCards()
-        dao.insertAll(remote.map { it.toEntity() })
     }
 }

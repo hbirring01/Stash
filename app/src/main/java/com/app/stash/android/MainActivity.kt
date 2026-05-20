@@ -15,7 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.stash.android.ui.AppViewModel
 import com.app.stash.android.ui.auth.BiometricGate
 import com.app.stash.android.ui.navigation.AppNavGraph
-import com.app.stash.android.ui.theme.CreditCardAppTheme
+import com.app.stash.android.ui.theme.StashTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -47,7 +47,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         setContent {
             val themeMode by appViewModel.themeMode.collectAsStateWithLifecycle()
-            CreditCardAppTheme(themeMode = themeMode) {
+            StashTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

@@ -3,7 +3,6 @@ package com.app.stash.android.di
 import com.app.stash.android.BuildConfig
 import com.app.stash.android.data.places.FoursquareApi
 import com.app.stash.android.data.places.OverpassApi
-import com.app.stash.android.data.remote.CreditCardApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,7 +19,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "https://example.com/api/"
     // Identifies the app to API operators. Overpass mirrors return 406/429 for
     // generic User-Agent strings like the default okhttp/4.x.
     private const val USER_AGENT = "StashApp/1.0 (Android; com.app.stash.android)"
@@ -52,22 +50,6 @@ object NetworkModule {
             .addInterceptor(logging)
             .build()
     }
-
-    @Provides
-    @Singleton
-    fun provideRetrofit(client: OkHttpClient, json: Json): Retrofit {
-        val contentType = "application/json".toMediaType()
-        return Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(client)
-            .addConverterFactory(json.asConverterFactory(contentType))
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    fun provideCreditCardApi(retrofit: Retrofit): CreditCardApi =
-        retrofit.create(CreditCardApi::class.java)
 
     @Provides
     @Singleton

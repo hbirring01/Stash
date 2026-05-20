@@ -10,7 +10,7 @@ Android app that tells you **which credit card to swipe at the business in front
 </p>
 
 <p align="center">
-  <a href="https://hbirring01.github.io/CreditCardApp/privacy.html"><b>Privacy policy</b></a> ·
+  <a href="https://hbirring01.github.io/Stash/privacy.html"><b>Privacy policy</b></a> ·
   <a href="RELEASING.md">Release checklist</a> ·
   <a href="server/README.md">Plaid proxy server</a>
 </p>
@@ -101,8 +101,8 @@ docs/                 Privacy policy + landing page (GitHub Pages)
 ### Clone & configure
 
 ```bash
-git clone https://github.com/hbirring01/CreditCardApp.git
-cd CreditCardApp
+git clone https://github.com/hbirring01/Stash.git
+cd Stash
 ```
 
 Create `local.properties` (already git-ignored) with at minimum:
@@ -115,11 +115,13 @@ sdk.dir=C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
 # Get a free key at https://foursquare.com/developers/
 FOURSQUARE_API_KEY=fsq3YOUR_KEY_HERE
 
-# Optional — release signing
-# RELEASE_STORE_FILE=/path/to/keystore.jks
-# RELEASE_STORE_PASSWORD=…
-# RELEASE_KEY_ALIAS=…
-# RELEASE_KEY_PASSWORD=…
+# Optional — release signing. CI reads these from repo secrets; for local
+# release builds, set them here. Debug builds work without them (the gradle
+# config falls back to an unsigned debug keystore).
+# SIGNING_STORE_FILE=upgrade.keystore
+# SIGNING_STORE_PASSWORD=…
+# SIGNING_KEY_ALIAS=upgrade
+# SIGNING_KEY_PASSWORD=…
 ```
 
 ### Build & run
@@ -140,7 +142,7 @@ Tap **Set up Plaid** on first launch (or **Settings → Plaid keys** later) and 
 
 Keys are stored in `EncryptedSharedPreferences` and never displayed back. To rotate, just paste a new value over the old one.
 
-The bundled `server/` directory has a small Node.js proxy that exchanges public tokens for access tokens — required for any non-trivial use. See [server/README.md](server/README.md).
+The bundled `server/` directory is an **optional hardened Plaid proxy** that lets you keep your `client_id` / `secret` off the device entirely. The app currently talks to Plaid directly; the proxy is included as scaffolding if you ever want to migrate. See [server/README.md](server/README.md).
 
 ## Configuration knobs
 
@@ -170,7 +172,7 @@ Everything sensitive stays on-device:
 
 The only outbound network calls are to: Plaid (banking), Foursquare (places), Overpass (places), CARTO (tiles), and Android's geocoder.
 
-Full policy: [hbirring01.github.io/CreditCardApp/privacy.html](https://hbirring01.github.io/CreditCardApp/privacy.html)
+Full policy: [hbirring01.github.io/Stash/privacy.html](https://hbirring01.github.io/Stash/privacy.html)
 
 ## Releasing
 
