@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -31,12 +30,12 @@ fun localProp(name: String, default: String = "") =
 
 android {
     namespace = "com.app.stash.android"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.app.stash.android"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         // versionCode/versionName can be overridden by CI via env vars
         // (set from the git tag in release.yml). Falls back to 1 / "1.0" locally.
         versionCode = (System.getenv("RELEASE_VERSION_CODE") ?: "1").toInt()
@@ -85,10 +84,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -103,6 +98,12 @@ android {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 dependencies {
