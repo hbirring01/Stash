@@ -90,6 +90,18 @@ object DatabaseModule {
     fun provideAiMatchCacheDao(db: AppDatabase): AiMatchCacheDao = db.aiMatchCacheDao()
 
     private object DebugSeed : RoomDatabase.Callback() {
+        // Kotlin 2.3 promotes the intersection-type inference warning on
+        // `arrayOf(mixedTypes...)` to an error; this typed helper sidesteps
+        // it without making seed rows wider than ktlint's column limit.
+        @Suppress("UNCHECKED_CAST")
+        private fun row(vararg v: Any?): Array<Any?> = v as Array<Any?>
+
+        @Suppress(
+            "ktlint:standard:max-line-length",
+            "ktlint:standard:argument-list-wrapping",
+            "ktlint:standard:wrapping",
+            "ktlint:standard:multiline-expression-wrapping",
+        )
         override fun onCreate(db: SupportSQLiteDatabase) {
             val now = System.currentTimeMillis()
             val sql = """
@@ -105,19 +117,19 @@ object DatabaseModule {
             val plus60d = now + 60L * 24 * 60 * 60 * 1000
 
             // Sapphire-style: dining + travel, $95 AF, UR points (1.5¢/pt with travel)
-            db.execSQL(sql, arrayOf(
+            db.execSQL(sql, row(
                 "", "4242", "Visa", 12, 2028, 1240.55, 8000.0, "Sapphire", now,
                 """{"DINING":3.0,"TRAVEL":2.0,"ENTERTAINMENT":2.0,"OTHER":1.0}""",
                 95.0, 1.5, 4000.0, 1240.55, 900.0, plus60d
             ))
             // Cash Preferred-style: groceries + gas, $0 AF, cash (1¢/pt)
-            db.execSQL(sql, arrayOf(
+            db.execSQL(sql, row(
                 "", "8810", "Mastercard", 7, 2027, 320.10, 5000.0, "Cash Preferred", now,
                 """{"GROCERIES":6.0,"GAS":3.0,"OTHER":1.0}""",
                 0.0, 1.0, 0.0, 0.0, 0.0, null
             ))
             // Platinum-style: travel-heavy, $695 AF, MR (1.5¢/pt)
-            db.execSQL(sql, arrayOf(
+            db.execSQL(sql, row(
                 "", "1009", "Amex", 3, 2029, 4275.00, 12000.0, "Platinum", now,
                 """{"TRAVEL":5.0,"DINING":4.0,"SHOPPING":2.0,"OTHER":1.0}""",
                 695.0, 1.5, 8000.0, 4275.00, 1500.0, plus60d
@@ -130,8 +142,8 @@ object DatabaseModule {
                   (cardId, programName, points, valuePerPointCents, updatedAt)
                 VALUES (?, ?, ?, ?, ?)
             """.trimIndent()
-            db.execSQL(balSql, arrayOf(1L, "Chase Ultimate Rewards", 84_500.0, 1.5, now))
-            db.execSQL(balSql, arrayOf(3L, "Amex Membership Rewards", 142_300.0, 1.5, now))
+            db.execSQL(balSql, row(1L, "Chase Ultimate Rewards", 84_500.0, 1.5, now))
+            db.execSQL(balSql, row(3L, "Amex Membership Rewards", 142_300.0, 1.5, now))
 
             // Seed a rotating-category window: Q2 2026 = 5% gas + streaming on
             // (hypothetical) Freedom-style card.
@@ -142,7 +154,7 @@ object DatabaseModule {
             """.trimIndent()
             val q2Start = 1_743_465_600_000L // 2026-04-01 UTC
             val q2End = 1_751_414_399_000L   // 2026-06-30 23:59:59 UTC
-            db.execSQL(rotSql, arrayOf(2L, "GAS", 5.0, q2Start, q2End, "Q2 2026 — Gas & Streaming"))
+            db.execSQL(rotSql, row(2L, "GAS", 5.0, q2Start, q2End, "Q2 2026 — Gas & Streaming"))
 
             // Curated card-linked offers. These are sample/illustrative — real
             // offers should be refreshed manually or via the user submitting them.
@@ -161,16 +173,16 @@ object DatabaseModule {
             val discoverUri = "https://card.discover.com/cardmembersvcs/deals"
             // (pattern, display, issuer, cardLast4, kind, value, cap, minSpend, expiresAt, source, uri, desc)
             val offers = listOf(
-                arrayOf("starbucks", "Starbucks", "Chase", null, "PERCENT", 10.0, 5.0, 0.0, plus30d, null, "CURATED", chaseUri, "10% back on Starbucks purchases"),
-                arrayOf("target", "Target", "Amex", null, "PERCENT", 8.0, 25.0, 0.0, plus30d, null, "CURATED", amexUri, "8% back at Target"),
-                arrayOf("walmart", "Walmart", "Citi", null, "PERCENT", 5.0, 15.0, 25.0, plus30d, null, "CURATED", citiUri, "5% back on $25+ at Walmart"),
-                arrayOf("whole foods", "Whole Foods", "Amex", null, "FLAT", 10.0, null, 50.0, plus30d, null, "CURATED", amexUri, "$10 back on $50+ at Whole Foods"),
-                arrayOf("home depot", "The Home Depot", "Chase", null, "PERCENT", 6.0, 30.0, 0.0, plus30d, null, "CURATED", chaseUri, "6% back at Home Depot"),
-                arrayOf("uber", "Uber", "Amex", null, "PERCENT", 12.0, 10.0, 0.0, plus30d, null, "CURATED", amexUri, "12% back on Uber rides"),
-                arrayOf("doordash", "DoorDash", "Chase", null, "PERCENT", 10.0, 8.0, 0.0, plus30d, null, "CURATED", chaseUri, "10% back on DoorDash"),
-                arrayOf("best buy", "Best Buy", "Citi", null, "FLAT", 20.0, null, 100.0, plus30d, null, "CURATED", citiUri, "$20 back on $100+ at Best Buy"),
-                arrayOf("cvs", "CVS Pharmacy", "Discover", null, "PERCENT", 5.0, 10.0, 0.0, plus30d, null, "CURATED", discoverUri, "5% back at CVS"),
-                arrayOf("shell", "Shell", "Chase", null, "POINTS_MULT", 3.0, null, 0.0, plus30d, null, "CURATED", chaseUri, "3× points at Shell gas stations"),
+                row("starbucks", "Starbucks", "Chase", null, "PERCENT", 10.0, 5.0, 0.0, plus30d, null, "CURATED", chaseUri, "10% back on Starbucks purchases"),
+                row("target", "Target", "Amex", null, "PERCENT", 8.0, 25.0, 0.0, plus30d, null, "CURATED", amexUri, "8% back at Target"),
+                row("walmart", "Walmart", "Citi", null, "PERCENT", 5.0, 15.0, 25.0, plus30d, null, "CURATED", citiUri, "5% back on $25+ at Walmart"),
+                row("whole foods", "Whole Foods", "Amex", null, "FLAT", 10.0, null, 50.0, plus30d, null, "CURATED", amexUri, "$10 back on $50+ at Whole Foods"),
+                row("home depot", "The Home Depot", "Chase", null, "PERCENT", 6.0, 30.0, 0.0, plus30d, null, "CURATED", chaseUri, "6% back at Home Depot"),
+                row("uber", "Uber", "Amex", null, "PERCENT", 12.0, 10.0, 0.0, plus30d, null, "CURATED", amexUri, "12% back on Uber rides"),
+                row("doordash", "DoorDash", "Chase", null, "PERCENT", 10.0, 8.0, 0.0, plus30d, null, "CURATED", chaseUri, "10% back on DoorDash"),
+                row("best buy", "Best Buy", "Citi", null, "FLAT", 20.0, null, 100.0, plus30d, null, "CURATED", citiUri, "$20 back on $100+ at Best Buy"),
+                row("cvs", "CVS Pharmacy", "Discover", null, "PERCENT", 5.0, 10.0, 0.0, plus30d, null, "CURATED", discoverUri, "5% back at CVS"),
+                row("shell", "Shell", "Chase", null, "POINTS_MULT", 3.0, null, 0.0, plus30d, null, "CURATED", chaseUri, "3× points at Shell gas stations"),
             )
             offers.forEach { db.execSQL(offerSql, it) }
 
@@ -188,11 +200,11 @@ object DatabaseModule {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
             val sampleCredits = listOf(
-                arrayOf(1L, "Travel Credit", 300.0, "ANNUAL", 1, 1, "TRAVEL", "Auto-applies to any travel charge", "CURATED", null, "TRAVEL", 1, now),
-                arrayOf(3L, "Hotel Credit", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Fine Hotels + Resorts and The Hotel Collection", "CURATED", "marriott|hilton|hyatt|ihg|four seasons", "TRAVEL", 1, now),
-                arrayOf(3L, "Uber Cash", 200.0, "ANNUAL", 1, 1, "RIDESHARE", "Monthly $15 / December $35 Uber Cash", "CURATED", "uber", null, 1, now),
-                arrayOf(3L, "Airline Incidental", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Select one airline at start of year", "CURATED", "delta|american airlines|united|southwest|jetblue", "TRAVEL", 1, now),
-                arrayOf(3L, "Digital Entertainment", 240.0, "ANNUAL", 1, 1, "ENTERTAINMENT", "Disney+ / Hulu / NYT / WSJ etc.", "CURATED", "disney|hulu|nytimes|wall street journal|peacock|sirius", null, 1, now),
+                row(1L, "Travel Credit", 300.0, "ANNUAL", 1, 1, "TRAVEL", "Auto-applies to any travel charge", "CURATED", null, "TRAVEL", 1, now),
+                row(3L, "Hotel Credit", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Fine Hotels + Resorts and The Hotel Collection", "CURATED", "marriott|hilton|hyatt|ihg|four seasons", "TRAVEL", 1, now),
+                row(3L, "Uber Cash", 200.0, "ANNUAL", 1, 1, "RIDESHARE", "Monthly $15 / December $35 Uber Cash", "CURATED", "uber", null, 1, now),
+                row(3L, "Airline Incidental", 200.0, "ANNUAL", 1, 1, "TRAVEL", "Select one airline at start of year", "CURATED", "delta|american airlines|united|southwest|jetblue", "TRAVEL", 1, now),
+                row(3L, "Digital Entertainment", 240.0, "ANNUAL", 1, 1, "ENTERTAINMENT", "Disney+ / Hulu / NYT / WSJ etc.", "CURATED", "disney|hulu|nytimes|wall street journal|peacock|sirius", null, 1, now),
             )
             sampleCredits.forEach { db.execSQL(creditSql, it) }
         }
