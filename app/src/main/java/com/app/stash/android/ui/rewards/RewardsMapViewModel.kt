@@ -17,6 +17,8 @@ import com.app.stash.android.domain.model.Offer
 import com.app.stash.android.domain.model.RewardCategory
 import com.app.stash.android.domain.model.RotatingCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -411,13 +413,35 @@ class RewardsMapViewModel @Inject constructor(
     }
 
     private suspend fun applyLocation(userLoc: UserLocation, isRefresh: Boolean = false) {
-        val cards = runCatching { cardRepository.observeCards().first() }.getOrDefault(emptyList())
-        val rotating = runCatching { rewardsRepository.observeActiveRotating().first() }
-            .getOrDefault(emptyList())
-        val offers = runCatching { offersRepository.observeUnactivated().first() }
-            .getOrDefault(emptyList())
         val radius = _state.value.radiusMeters
-        val nearbyResult = placesRepository.nearby(userLoc.latitude, userLoc.longitude, radius)
+        // Run the (independent) data sources in parallel: cards / rotating bonuses /
+        // unactivated offers / nearby places. Previously these were awaited
+        // sequentially, adding ~3 round-trips of latency before the first place
+        // could even be matched.
+        val cardsD: kotlinx.coroutines.Deferred<List<CreditCard>>
+        val rotatingD: kotlinx.coroutines.Deferred<List<RotatingCategory>>
+        val offersD: kotlinx.coroutines.Deferred<List<Offer>>
+        val placesD: kotlinx.coroutines.Deferred<Result<List<NearbyPlace>>>
+        coroutineScope {
+            cardsD = async {
+                runCatching { cardRepository.observeCards().first() }.getOrDefault(emptyList())
+            }
+            rotatingD = async {
+                runCatching { rewardsRepository.observeActiveRotating().first() }
+                    .getOrDefault(emptyList())
+            }
+            offersD = async {
+                runCatching { offersRepository.observeUnactivated().first() }
+                    .getOrDefault(emptyList())
+            }
+            placesD = async {
+                placesRepository.nearby(userLoc.latitude, userLoc.longitude, radius)
+            }
+        }
+        val cards = cardsD.await()
+        val rotating = rotatingD.await()
+        val offers = offersD.await()
+        val nearbyResult = placesD.await()
         val places = nearbyResult.getOrDefault(emptyList())
         val recs = places.map { p -> recommend(p, cards, rotating, offers) }
         _state.value = _state.value.copy(

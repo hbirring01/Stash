@@ -3,12 +3,17 @@ package com.app.stash.android.data.places
 import android.util.Log
 import com.app.stash.android.data.preferences.ApiKeyStore
 import com.app.stash.android.domain.model.RewardCategory
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.atan2
@@ -36,6 +41,16 @@ class PlacesRepository @Inject constructor(
         lon: Double,
         radiusMeters: Int = 1609,
     ): Result<List<NearbyPlace>> = withContext(Dispatchers.IO) {
+        // Short-lived cache: rapid pans / re-opens within ~100m of the same
+        // center hit a cached response instead of refiring the network call.
+        val key = nearbyCacheKey(lat, lon, radiusMeters)
+        nearbyCache[key]?.let { entry ->
+            if (System.currentTimeMillis() - entry.timestamp < CACHE_TTL_MS) {
+                return@withContext Result.success(entry.places)
+            }
+            nearbyCache.remove(key)
+        }
+
         // Imperial-friendly cascade: 1 mi → 3 mi → 10 mi when the closer search
         // returns nothing (useful in suburbs / rural areas). Honor the caller's
         // requested radius as the starting point.
@@ -47,16 +62,22 @@ class PlacesRepository @Inject constructor(
             val result = runCatching { fetchOverpass(lat, lon, r) }
             result.onFailure { overpassError = it }
             val list = result.getOrNull().orEmpty()
-            if (list.isNotEmpty()) return@withContext Result.success(list)
+            if (list.isNotEmpty()) {
+                cacheNearby(key, list)
+                return@withContext Result.success(list)
+            }
         }
 
         // Fallback: Foursquare. Only attempt when a key is configured.
-        val key = apiKeyStore.effectiveFoursquareKey()
-        if (key.isNotBlank()) {
+        val fsqKey = apiKeyStore.effectiveFoursquareKey()
+        if (fsqKey.isNotBlank()) {
             for (r in radii) {
-                val result = runCatching { fetchFoursquare(lat, lon, r, key) }
+                val result = runCatching { fetchFoursquare(lat, lon, r, fsqKey) }
                 val list = result.getOrNull().orEmpty()
-                if (list.isNotEmpty()) return@withContext Result.success(list)
+                if (list.isNotEmpty()) {
+                    cacheNearby(key, list)
+                    return@withContext Result.success(list)
+                }
                 result.onFailure { overpassError = it }
             }
         }
@@ -64,11 +85,30 @@ class PlacesRepository @Inject constructor(
         if (overpassError != null) Result.failure(overpassError!!) else Result.success(emptyList())
     }
 
+    private fun nearbyCacheKey(lat: Double, lon: Double, radius: Int): String {
+        // Round to ~0.001° (≈110m) so small pans / coordinate noise share a key.
+        val latR = (lat * 1000).toInt()
+        val lonR = (lon * 1000).toInt()
+        return "$latR,$lonR,$radius"
+    }
+
+    private fun cacheNearby(key: String, places: List<NearbyPlace>) {
+        if (nearbyCache.size >= MAX_CACHE_ENTRIES) {
+            // Cheap LRU-ish eviction: drop the oldest entry.
+            nearbyCache.entries.minByOrNull { it.value.timestamp }?.key?.let { nearbyCache.remove(it) }
+        }
+        nearbyCache[key] = CacheEntry(System.currentTimeMillis(), places)
+    }
+
+    private data class CacheEntry(val timestamp: Long, val places: List<NearbyPlace>)
+
+    private val nearbyCache = ConcurrentHashMap<String, CacheEntry>()
+
     private suspend fun fetchOverpass(lat: Double, lon: Double, radiusMeters: Int): List<NearbyPlace> {
         // `nwr` covers node/way/relation. `out center` gives ways/relations a representative
         // lat/lon. Many real businesses are tagged as building ways, not nodes.
         val query = """
-            [out:json][timeout:25];
+            [out:json][timeout:15];
             (
               nwr["amenity"~"restaurant|cafe|fast_food|bar|pub|fuel|cinema|theatre|nightclub|bank|atm|pharmacy"]["name"](around:$radiusMeters,$lat,$lon);
               nwr["shop"]["name"](around:$radiusMeters,$lat,$lon);
@@ -98,41 +138,64 @@ class PlacesRepository @Inject constructor(
     }
 
     /**
-     * POSTs an Overpass QL query to each mirror in [OVERPASS_MIRRORS] until one
-     * returns a non-empty response. The default Retrofit-wired mirror
-     * (kumi.systems) is fast but occasionally returns 504/empty during outages,
-     * so we cascade through the public mirrors before giving up.
+     * POSTs an Overpass QL query to all mirrors in [OVERPASS_MIRRORS] in
+     * parallel and returns the first non-empty response, cancelling the others.
+     * Previously this was sequential: a slow/504 first mirror would block the
+     * UI for tens of seconds before the second was even tried. Racing them
+     * trades a few extra requests for dramatically better worst-case latency.
      */
-    private suspend fun queryOverpassMirrors(query: String): OverpassResponse {
-        var lastError: Throwable? = null
-        for (url in OVERPASS_MIRRORS) {
-            try {
-                val req = Request.Builder()
-                    .url(url)
-                    .header("Accept", "*/*")
-                    .post(FormBody.Builder().add("data", query).build())
-                    .build()
-                val body = withContext(Dispatchers.IO) {
-                    httpClient.newCall(req).execute().use { resp ->
-                        if (!resp.isSuccessful) {
-                            lastError = IllegalStateException("Overpass ${resp.code} @ $url")
-                            return@use null
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private suspend fun queryOverpassMirrors(query: String): OverpassResponse = coroutineScope {
+        val deferreds: List<Deferred<Pair<String, Result<OverpassResponse>>>> =
+            OVERPASS_MIRRORS.map { url ->
+                async(Dispatchers.IO) {
+                    url to runCatching {
+                        val req = Request.Builder()
+                            .url(url)
+                            .header("Accept", "*/*")
+                            .post(FormBody.Builder().add("data", query).build())
+                            .build()
+                        httpClient.newCall(req).execute().use { resp ->
+                            if (!resp.isSuccessful) {
+                                throw IllegalStateException("Overpass ${resp.code} @ $url")
+                            }
+                            val body = resp.body?.string().orEmpty()
+                            json.decodeFromString(OverpassResponse.serializer(), body)
                         }
-                        resp.body?.string()
                     }
-                } ?: continue
-                val parsed = json.decodeFromString(OverpassResponse.serializer(), body)
-                if (parsed.elements.isNotEmpty()) return parsed
-                // Empty but successful — try next mirror in case this one is stale.
-            } catch (t: Throwable) {
-                Log.w("PlacesRepository", "Overpass mirror failed: $url", t)
-                lastError = t
+                }
             }
+
+        val pending = deferreds.toMutableList()
+        var lastError: Throwable? = null
+        var emptyResponse: OverpassResponse? = null
+        try {
+            while (pending.isNotEmpty()) {
+                val finished = select<Deferred<Pair<String, Result<OverpassResponse>>>> {
+                    pending.forEach { d -> d.onAwait { d } }
+                }
+                pending.remove(finished)
+                val (url, result) = finished.getCompleted()
+                result.fold(
+                    onSuccess = { resp ->
+                        if (resp.elements.isNotEmpty()) {
+                            return@coroutineScope resp
+                        }
+                        emptyResponse = resp
+                    },
+                    onFailure = { t ->
+                        Log.w("PlacesRepository", "Overpass mirror failed: $url", t)
+                        lastError = t
+                    },
+                )
+            }
+            // No mirror returned content; bubble up the last failure if any so
+            // the caller can show a real error instead of "no results".
+            lastError?.let { throw it }
+            emptyResponse ?: OverpassResponse(emptyList())
+        } finally {
+            pending.forEach { it.cancel() }
         }
-        // No mirror returned content; bubble up the last failure if any so the
-        // caller can show a real error instead of "no results".
-        lastError?.let { throw it }
-        return OverpassResponse(emptyList())
     }
 
     private suspend fun fetchFoursquare(
@@ -271,7 +334,7 @@ class PlacesRepository @Inject constructor(
         // Querying all three (union) catches Starbucks, McDonald's, etc. that may
         // only have a generic `name` like "Coffee" but a `brand=Starbucks`.
         val query = """
-            [out:json][timeout:25];
+            [out:json][timeout:15];
             (
               nwr["name"~"$escaped",i](around:$radiusMeters,$lat,$lon);
               nwr["brand"~"$escaped",i](around:$radiusMeters,$lat,$lon);
@@ -362,6 +425,12 @@ class PlacesRepository @Inject constructor(
             "https://overpass-api.de/api/interpreter",
             "https://overpass.openstreetmap.fr/api/interpreter",
         )
+
+        // Cached `nearby` responses live this long; small enough that the user
+        // sees fresh data on a deliberate refresh, large enough to absorb
+        // rapid pans / zoom-outs / re-opens of the Rewards screen.
+        const val CACHE_TTL_MS: Long = 5 * 60 * 1000L
+        const val MAX_CACHE_ENTRIES: Int = 32
     }
 }
 
