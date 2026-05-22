@@ -22,6 +22,9 @@ jobs:
   analyze:
     name: Analyze (java-kotlin)
     runs-on: ubuntu-latest
+    # CodeQL analysis (with build) typically runs ~10 min; this is a safety
+    # net for runaway extractor / query evaluation.
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v6
@@ -42,6 +45,9 @@ jobs:
         with:
           languages: java-kotlin
           build-mode: manual
+          # Broader query pack: includes maintainability + reliability rules
+          # on top of the default security set. Adds ~1-2 min to analysis.
+          queries: security-extended
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew

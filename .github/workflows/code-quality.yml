@@ -20,6 +20,7 @@ jobs:
   ktlint:
     name: ktlint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Advisory only: ktlint findings appear in the job log and step summary
     # but do NOT post inline review comments on every PR and do NOT mark the
     # check as FAILURE on style nits. Run `./gradlew ktlintFormat` locally if
@@ -39,6 +40,9 @@ jobs:
   detekt:
     name: detekt
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DETEKT_VERSION: 1.23.7
     steps:
       - uses: actions/checkout@v6
       - name: Set up JDK 17
@@ -46,14 +50,23 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+      # Cache the detekt-cli zip so we don't hit GitHub Releases every PR.
+      # Keyed on the version so a bump invalidates automatically.
+      - name: Cache detekt CLI
+        id: cache-detekt
+        uses: actions/cache@v4
+        with:
+          path: detekt-cli-${{ env.DETEKT_VERSION }}
+          key: detekt-cli-${{ env.DETEKT_VERSION }}-${{ runner.os }}
       - name: Download detekt
+        if: steps.cache-detekt.outputs.cache-hit != 'true'
         run: |
-          curl -sSLO "https://github.com/detekt/detekt/releases/download/v1.23.7/detekt-cli-1.23.7.zip"
-          unzip -q detekt-cli-1.23.7.zip
-          chmod +x detekt-cli-1.23.7/bin/detekt-cli
+          curl -sSLO "https://github.com/detekt/detekt/releases/download/v${DETEKT_VERSION}/detekt-cli-${DETEKT_VERSION}.zip"
+          unzip -q detekt-cli-${DETEKT_VERSION}.zip
+          chmod +x detekt-cli-${DETEKT_VERSION}/bin/detekt-cli
       - name: Run detekt
         run: |
-          ./detekt-cli-1.23.7/bin/detekt-cli \
+          ./detekt-cli-${DETEKT_VERSION}/bin/detekt-cli \
             --build-upon-default-config \
             --input app/src/main \
             --report sarif:detekt-report.sarif \
