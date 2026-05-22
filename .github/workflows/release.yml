@@ -88,7 +88,7 @@ jobs:
       # verify the APK was built by GitHub Actions from this repo via:
       #   gh attestation verify StashApp-vX.Y.Z.apk --owner hbirring01
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ steps.apk.outputs.path }}
 
