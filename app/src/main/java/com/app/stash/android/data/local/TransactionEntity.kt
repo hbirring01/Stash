@@ -22,5 +22,13 @@ data class TransactionEntity(
     val categoryPrimary: String?,
     val categoryDetailed: String?,
     val paymentChannel: String?,
+    /**
+     * High-level reward category resolved by [TransactionCategorizer].
+     * One of the [com.app.stash.android.domain.model.RewardCategory] names
+     * (e.g. "DINING", "GROCERIES"). Null when categorization hasn't run yet
+     * (e.g. transaction just synced, AI disabled and Plaid returned no
+     * usable primary category).
+     */
+    val aiCategory: String? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 )

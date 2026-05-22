@@ -163,8 +163,16 @@ private fun TransactionRow(tx: TransactionEntity) {
         Box(modifier = Modifier.fillMaxWidth()) {
             val subtitle = buildString {
                 append(formatDate(tx.date))
-                tx.categoryPrimary?.let { append("  ·  ").append(it.replace('_', ' ').lowercase().replaceFirstChar { ch -> ch.titlecase() }) }
-                if (tx.pending) append("  ·  Pending")
+                // Prefer the AI/rule-resolved category tag (DINING, GAS, etc.)
+                // over Plaid's raw PFC string when present \u2014 it's friendlier
+                // and consistent across merchants Plaid mis-tags.
+                val tag = tx.aiCategory
+                    ?.let { runCatching { com.app.stash.android.domain.model.RewardCategory.valueOf(it) }.getOrNull() }
+                    ?.displayName
+                    ?: tx.categoryPrimary?.replace('_', ' ')?.lowercase()
+                        ?.replaceFirstChar { ch -> ch.titlecase() }
+                tag?.let { append("  \u00b7  ").append(it) }
+                if (tx.pending) append("  \u00b7  Pending")
             }
             Text(
                 text = subtitle,

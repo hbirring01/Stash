@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.PhoneAndroid
@@ -47,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -57,6 +59,9 @@ import com.app.stash.android.data.preferences.AiConfigState
 import com.app.stash.android.data.preferences.ThemeMode
 import com.app.stash.android.ui.AppViewModel
 import com.app.stash.android.ui.list.CardListViewModel
+
+/** Public PayPal.Me link for "Donate to developer" in Settings. */
+private const val DONATE_URL = "https://paypal.me/HBirring49"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -215,6 +220,42 @@ fun SettingsScreen(
                             } else {
                                 Icon(Icons.Outlined.ChevronRight, contentDescription = null)
                             }
+                        },
+                        colors = ListItemDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
+                    )
+                }
+            }
+            // ---- Donate to developer ----
+            // Opens an external payment URL in the user's browser. Kept on its
+            // own card so it's visually distinct from app-config rows above.
+            item {
+                val context = LocalContext.current
+                SettingsCard {
+                    ListItem(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val intent = android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(DONATE_URL),
+                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                runCatching { context.startActivity(intent) }
+                            },
+                        headlineContent = { Text("Donate to developer") },
+                        supportingContent = {
+                            Text("Support Stash via PayPal \u00b7 opens in your browser")
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Outlined.Favorite,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        trailingContent = {
+                            Icon(Icons.Outlined.ChevronRight, contentDescription = null)
                         },
                         colors = ListItemDefaults.colors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
