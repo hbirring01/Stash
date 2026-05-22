@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.compose.screenshot)
 }
 
 // Move build outputs outside OneDrive — OneDrive sync corrupts/locks files
@@ -89,6 +90,12 @@ android {
         buildConfig = true
     }
 
+    // First-party Compose Preview Screenshot Testing (AGP 9 stable, plugin
+    // `com.android.compose.screenshot`). Generates PNG snapshots from
+    // @Preview functions in src/screenshotTest. Run locally with
+    // `./gradlew :app:updateDebugScreenshotTest`.
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -154,4 +161,13 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // screenshotTest source set needs the preview tooling on its classpath
+    // so @Preview-annotated Composables resolve.
+    screenshotTestImplementation(platform(libs.compose.bom))
+    screenshotTestImplementation(libs.compose.ui.tooling)
+    screenshotTestImplementation(libs.compose.ui.tooling.preview)
+    screenshotTestImplementation(libs.compose.material3)
+    screenshotTestImplementation(libs.compose.material.icons.extended)
+    screenshotTestImplementation(libs.screenshot.validation.api)
 }
