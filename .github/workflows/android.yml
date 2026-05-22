@@ -13,6 +13,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Defensive cap so a hung Gradle daemon / network stall can't burn 6h
+    # of Actions minutes. Healthy runs finish in well under 10 min.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
 
@@ -57,3 +60,36 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Preserve diagnostic output when the chained Gradle call fails so we
+      # don't have to re-run the workflow with extra flags just to read a
+      # lint report or a JUnit failure stack.
+      - name: Upload lint + test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Supply-chain guardrail: flag dependency bumps with known CVEs or
+  # disallowed licenses before they hit main. PR-only because pushes to main
+  # have already been reviewed.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

@@ -16,6 +16,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Release builds run assembleRelease + sign + GitHub Release upload; a
+    # hung sign step would otherwise sit forever.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with:
@@ -151,7 +154,9 @@ jobs:
           cat RELEASE_NOTES.md
 
       - name: Create GitHub Release and upload APK
-        uses: softprops/action-gh-release@v3
+        # Pinned to SHA (v3.0.0) for supply-chain safety. Re-pin via:
+        #   gh api repos/softprops/action-gh-release/git/ref/tags/v3 --jq .object.sha
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           name: StashApp ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
