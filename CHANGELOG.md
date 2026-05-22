@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/hbirring01/Stash/compare/v1.8.0...v1.9.0) (2026-05-22)
+
+
+### Features
+
+* **transactions:** AI-powered purchase category tagging ([#37](https://github.com/hbirring01/Stash/issues/37)) ([7d1fe32](https://github.com/hbirring01/Stash/commit/7d1fe32edd5477af4cd1f930897de2c655a936ce))
+
 ## [1.8.0](https://github.com/hbirring01/Stash/compare/v1.7.7...v1.8.0) (2026-05-22)
 
 
