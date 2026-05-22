@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -26,6 +30,8 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -51,7 +57,7 @@ jobs:
           echo "Resolved versionName=$VERSION_NAME versionCode=$VERSION_CODE"
 
       - name: Assemble release APK
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease
         env:
           FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
           RELEASE_VERSION_NAME: ${{ steps.ver.outputs.name }}

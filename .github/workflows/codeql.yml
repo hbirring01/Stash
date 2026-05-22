@@ -9,6 +9,10 @@ on:
     # Weekly scan, Mondays at 06:00 UTC
     - cron: '0 6 * * 1'
 
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 permissions:
   actions: read
   contents: read
@@ -30,6 +34,8 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -41,6 +47,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Decode signing keystore
+        # Debug build signed with the upgrade key (see app/build.gradle.kts).
         run: |
           if [ -z "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" ]; then
             echo "::error::SIGNING_KEYSTORE_BASE64 secret is not set"
@@ -49,7 +56,7 @@ jobs:
           echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > app/upgrade.keystore
 
       - name: Build
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug
         env:
           FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}

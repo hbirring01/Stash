@@ -6,6 +6,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 permissions:
   contents: read
   checks: write
@@ -16,15 +20,21 @@ jobs:
   ktlint:
     name: ktlint
     runs-on: ubuntu-latest
+    # Advisory only: ktlint findings appear in the job log and step summary
+    # but do NOT post inline review comments on every PR and do NOT mark the
+    # check as FAILURE on style nits. Run `./gradlew ktlintFormat` locally if
+    # one project ever wires it in; until then this is informational.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
       - name: ktlint
         uses: ScaCap/action-ktlint@26c5e9b625966139d9956cbbb6217375480d4e14 # v1.9.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review
+          reporter: github-check
           fail_on_error: false
           android: true
+          level: warning
 
   detekt:
     name: detekt
