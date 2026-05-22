@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,11 +24,16 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Decode signing keystore
+        # Debug builds are intentionally signed with the upgrade key so
+        # debug <-> release APKs are install-compatible (no data wipe when
+        # switching), so the keystore is needed even for assembleDebug.
         run: |
           if [ -z "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" ]; then
             echo "::error::SIGNING_KEYSTORE_BASE64 secret is not set"
@@ -32,18 +41,10 @@ jobs:
           fi
           echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > app/upgrade.keystore
 
-      - name: Lint
-        run: ./gradlew lintDebug --no-daemon
-        env:
-          FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
-
-      - name: Unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
-        env:
-          FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
-
-      - name: Assemble debug
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Lint + unit tests + assemble debug
+        # Chained into a single Gradle invocation so configuration runs once
+        # and the Kotlin / KSP compilers stay warm across tasks.
+        run: ./gradlew lintDebug testDebugUnitTest assembleDebug
         env:
           FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -55,3 +56,4 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
