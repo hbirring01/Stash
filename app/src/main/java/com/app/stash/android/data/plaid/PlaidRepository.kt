@@ -5,6 +5,7 @@ import com.app.stash.android.data.local.TransactionDao
 import com.app.stash.android.data.mapper.toCreditCardEntities
 import com.app.stash.android.data.mapper.toEntity
 import com.app.stash.android.data.repository.StatementCreditAutoMatcher
+import com.app.stash.android.data.repository.TransactionCategorizer
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,6 +17,7 @@ class PlaidRepository @Inject constructor(
     private val dao: CreditCardDao,
     private val transactionDao: TransactionDao,
     private val statementCreditAutoMatcher: StatementCreditAutoMatcher,
+    private val transactionCategorizer: TransactionCategorizer,
 ) {
     /** True once the user has saved Plaid credentials via the in-app setup screen. */
     val isConfigured: Boolean
@@ -149,6 +151,10 @@ class PlaidRepository @Inject constructor(
             val upserts = (resp.added + resp.modified).map { it.toEntity(itemId) }
             if (upserts.isNotEmpty()) {
                 transactionDao.upsertAll(upserts)
+                // Resolve a high-level RewardCategory (Plaid PFC → rules → AI)
+                // and persist it on each row so the UI can tag transactions
+                // without re-running the pipeline on every recomposition.
+                transactionCategorizer.categorize(upserts)
                 // Auto-log matching transactions against any statement
                 // credits attached to the affected card.
                 statementCreditAutoMatcher.matchTransactions(upserts)

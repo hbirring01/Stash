@@ -14,6 +14,8 @@ import com.app.stash.android.data.local.MIGRATION_5_6
 import com.app.stash.android.data.local.MIGRATION_6_7
 import com.app.stash.android.data.local.MIGRATION_7_8
 import com.app.stash.android.data.local.MIGRATION_8_9
+import com.app.stash.android.data.local.MIGRATION_9_10
+import com.app.stash.android.data.local.MerchantCategoryCacheDao
 import com.app.stash.android.data.local.OfferDao
 import com.app.stash.android.data.local.RewardBalanceDao
 import com.app.stash.android.data.local.RotatingCategoryDao
@@ -61,7 +63,7 @@ object DatabaseModule {
             // Explicit migrations preserve user data across upgrades. Fall back to
             // destructive wipe only when no migration path is available (e.g. unknown
             // version coming from a much older install) or on downgrade.
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
         if (BuildConfig.DEBUG) builder.addCallback(DebugSeed)
@@ -88,6 +90,10 @@ object DatabaseModule {
 
     @Provides
     fun provideAiMatchCacheDao(db: AppDatabase): AiMatchCacheDao = db.aiMatchCacheDao()
+
+    @Provides
+    fun provideMerchantCategoryCacheDao(db: AppDatabase): MerchantCategoryCacheDao =
+        db.merchantCategoryCacheDao()
 
     private object DebugSeed : RoomDatabase.Callback() {
         // Kotlin 2.3 promotes the intersection-type inference warning on

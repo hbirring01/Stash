@@ -188,3 +188,27 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         )
     }
 }
+
+/**
+ * v10 — AI-powered transaction categorization.
+ *
+ * Adds `transactions.aiCategory` to store the resolved high-level
+ * [com.app.stash.android.domain.model.RewardCategory] per transaction
+ * (filled lazily by [com.app.stash.android.data.repository.TransactionCategorizer]),
+ * and a `merchant_category_cache` table keyed by normalized merchant so we
+ * never ask the LLM the same merchant twice.
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `transactions` ADD COLUMN `aiCategory` TEXT")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `merchant_category_cache` (" +
+                "`merchantNorm` TEXT NOT NULL, " +
+                "`category` TEXT NOT NULL, " +
+                "`fromAi` INTEGER NOT NULL, " +
+                "`modelVersion` TEXT NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`merchantNorm`))"
+        )
+    }
+}
