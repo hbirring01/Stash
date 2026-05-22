@@ -12,6 +12,9 @@ concurrency:
 
 permissions:
   contents: write
+  # attest-build-provenance needs id-token (Sigstore OIDC) + attestations.
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -78,6 +81,16 @@ jobs:
           SHA=$(sha256sum "$APK" | cut -d' ' -f1)
           echo "size=$SIZE" >> "$GITHUB_OUTPUT"
           echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+
+      # SLSA build provenance: publishes a signed attestation to Sigstore
+      # tying this APK's sha256 to this workflow run + commit. Lets users
+      # verify the APK was built by GitHub Actions from this repo via:
+      #   gh attestation verify StashApp-vX.Y.Z.apk --owner hbirring01
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ${{ steps.apk.outputs.path }}
 
       - name: Build changelog from commits
         id: changelog
