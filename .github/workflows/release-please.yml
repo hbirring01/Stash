@@ -2,8 +2,10 @@ name: Release Please
 
 # Maintains a rolling "release PR" against main that bumps the version and
 # accumulates a CHANGELOG entry from Conventional Commits. When the release
-# PR is merged, release-please pushes a `vX.Y.Z` tag — which in turn fires
-# `release.yml` to build and publish the APK.
+# PR is merged, release-please pushes a `vX.Y.Z` tag and creates a GitHub
+# Release. Because that tag is created with the default GITHUB_TOKEN,
+# GitHub will NOT fire `push: tags` for `release.yml` (loop-prevention),
+# so this workflow explicitly dispatches release.yml in a follow-up job.
 #
 # Conventional Commit prefixes drive the version bump:
 #   feat:    → minor bump  (1.7.7 → 1.8.0)
@@ -32,8 +34,12 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - id: rp
+        uses: googleapis/release-please-action@v4
         with:
           # Read version from manifest and config from JSON. This avoids
           # duplicating the config in YAML and keeps schema validation
@@ -44,3 +50,25 @@ jobs:
           # the release-please PR via the maintainer review flow, not via
           # auto-merge.
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # GitHub deliberately does NOT fire `push`/`release` events when a tag or
+  # release is created using the default GITHUB_TOKEN (loop-prevention).
+  # That means `release.yml` (trigger: push tags v*) never runs for tags
+  # release-please pushes. To work around it, explicitly dispatch
+  # release.yml via workflow_dispatch whenever a release is created.
+  dispatch-apk-build:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch Release APK workflow for ${{ needs.release-please.outputs.tag_name }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          echo "Dispatching release.yml against tag $TAG"
+          gh workflow run release.yml --ref "$TAG" --repo "${{ github.repository }}"
