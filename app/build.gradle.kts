@@ -55,11 +55,20 @@ android {
         // Stable signing key for consistent APK signatures across releases.
         // Credentials are read from local.properties (not committed) or
         // environment variables so they never appear in version control.
-        create("upgrade") {
-            storeFile = file(localProp("SIGNING_STORE_FILE", "upgrade.keystore"))
-            storePassword = localProp("SIGNING_STORE_PASSWORD")
-            keyAlias = localProp("SIGNING_KEY_ALIAS", "upgrade")
-            keyPassword = localProp("SIGNING_KEY_PASSWORD")
+        //
+        // Dependabot PRs and fork PRs don't have access to repo secrets, so
+        // SIGNING_STORE_PASSWORD will be empty — in that case we skip
+        // creating the config and let AGP fall back to the auto-generated
+        // debug keystore. Release builds in release.yml always have the
+        // secrets and so always use the upgrade key.
+        val storePwd = localProp("SIGNING_STORE_PASSWORD")
+        if (storePwd.isNotEmpty()) {
+            create("upgrade") {
+                storeFile = file(localProp("SIGNING_STORE_FILE", "upgrade.keystore"))
+                storePassword = storePwd
+                keyAlias = localProp("SIGNING_KEY_ALIAS", "upgrade")
+                keyPassword = localProp("SIGNING_KEY_PASSWORD")
+            }
         }
     }
 
@@ -69,13 +78,15 @@ android {
             // tends to strip Hilt/Room/Retrofit/SQLCipher reflection targets.
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("upgrade")
+            signingConfigs.findByName("upgrade")?.let { signingConfig = it }
         }
         debug {
             isMinifyEnabled = false
-            // Sign debug with the same upgrade key so debug ↔ release APKs
-            // are install-compatible (no data wipe when switching).
-            signingConfig = signingConfigs.getByName("upgrade")
+            // Sign debug with the same upgrade key (when available) so
+            // debug ↔ release APKs are install-compatible (no data wipe
+            // when switching). Without secrets, AGP's default debug
+            // keystore is used.
+            signingConfigs.findByName("upgrade")?.let { signingConfig = it }
         }
     }
 
