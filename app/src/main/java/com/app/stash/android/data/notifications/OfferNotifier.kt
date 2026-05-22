@@ -95,16 +95,20 @@ class OfferNotifier @Inject constructor(
         offer.deepLinkUri?.let { uri ->
             val openIntent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                setPackage(context.packageName)
             }
-            val openPending = PendingIntent.getActivity(
-                context,
-                offer.id.toInt() + 10_000,
-                openIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
-            builder.addAction(
-                NotificationCompat.Action.Builder(0, "Open ${offer.issuer}", openPending).build()
-            )
+
+            if (context.packageManager.resolveActivity(openIntent, 0) != null) {
+                val openPending = PendingIntent.getActivity(
+                    context,
+                    offer.id.toInt() + 10_000,
+                    openIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+                builder.addAction(
+                    NotificationCompat.Action.Builder(0, "Open ${offer.issuer}", openPending).build()
+                )
+            }
         }
 
         notificationManager.notify(NOTIFICATION_ID_BASE + offer.id.toInt(), builder.build())
