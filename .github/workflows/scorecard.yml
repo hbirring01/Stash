@@ -41,6 +41,7 @@ jobs:
         # Pinned to SHA for v2.4.3 — ossf/scorecard-action does not maintain
         # a rolling major tag, so referencing @v2 fails to resolve.
         uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        uses: ossf/scorecard-action@v2.4.3
         with:
           results_file: scorecard-results.sarif
           results_format: sarif

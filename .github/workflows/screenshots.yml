@@ -1,0 +1,142 @@
+name: Screenshots
+
+# Regenerates curated README screenshots from Compose Preview snapshot tests
+# and commits the result back to main. Triggered on:
+#   - Push of a release tag (v*) so each release ships fresh screenshots
+#   - Manual dispatch for ad-hoc refreshes
+#
+# Uses AGP 9's first-party `com.android.compose.screenshot` plugin. Each
+# @Preview in src/screenshotTest renders to a PNG under
+# app/build/outputs/screenshotTest-results/preview/debug/. Mapped previews
+# are copied into /screenshots/ with stable filenames the README points to.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: screenshots-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Need a writable token so the auto-commit step can push back to
+          # main. The default GITHUB_TOKEN is sufficient because the
+          # workflow declares `contents: write` above.
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Decode signing keystore
+        # Debug variant is signed with the upgrade key (see app/build.gradle.kts),
+        # so even Compose preview rendering needs the keystore present at
+        # configuration time.
+        run: |
+          if [ -z "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::SIGNING_KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > app/upgrade.keystore
+
+      - name: Record screenshots
+        run: ./gradlew :app:updateDebugScreenshotTest --stacktrace
+        env:
+          FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      - name: Locate generated PNGs
+        id: locate
+        run: |
+          # alpha15 writes reference images to src/screenshotTest{Variant}/reference/
+          # under a subdir named after the fully-qualified class. File naming is
+          # `<FunctionName>_<previewName>_<hash>_0.png`.
+          SRC="app/src/screenshotTestDebug/reference"
+          echo "Source directory: $SRC"
+          if [ ! -d "$SRC" ]; then
+            echo "::error::Reference directory $SRC was not created by updateDebugScreenshotTest"
+            find app/build -name "*.png" || true
+            exit 1
+          fi
+          find "$SRC" -name "*.png"
+          echo "src=$SRC" >> "$GITHUB_OUTPUT"
+
+      - name: Map previews to README screenshots
+        run: |
+          set -e
+          SRC="${{ steps.locate.outputs.src }}"
+          mkdir -p screenshots
+
+          # Mapping: <PreviewFunctionName> -> screenshots/<filename>.png
+          # File naming convention from alpha15:
+          #   <FunctionName>_<previewName>_<hash>_<index>.png
+          # Add more entries here as new @PreviewTest composables are added.
+          declare -A MAP
+          MAP["WalletStackPreview"]="wallet.png"
+
+          for fn in "${!MAP[@]}"; do
+            target="screenshots/${MAP[$fn]}"
+            candidate=$(find "$SRC" -type f -name "${fn}_*.png" | head -n 1)
+            if [ -n "$candidate" ]; then
+              echo "Mapping $candidate -> $target"
+              cp "$candidate" "$target"
+            else
+              echo "::warning::No PNG found for preview $fn (expected to map to $target)"
+            fi
+          done
+
+          echo "--- screenshots/ contents ---"
+          ls -la screenshots/
+
+      - name: Upload all generated previews as artifact
+        # Always upload the raw output so reviewers can inspect previews that
+        # aren't yet mapped into screenshots/.
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshot-previews
+          path: ${{ steps.locate.outputs.src }}/**/*.png
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Commit updated screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add screenshots/
+          if git diff --cached --quiet; then
+            echo "No screenshot changes to commit."
+            exit 0
+          fi
+          # [skip ci] keeps the bot push from triggering android.yml + codeql
+          # again on a screenshot-only commit.
+          MSG="chore(screenshots): refresh from ${GITHUB_REF_NAME} [skip ci]"
+          git commit -m "$MSG"
+          git push origin HEAD:main
