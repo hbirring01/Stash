@@ -1,0 +1,60 @@
+name: OSSF Scorecard
+
+# Runs the OpenSSF Scorecard checks against the repo on a weekly schedule
+# and on every push to main. Findings are uploaded as SARIF (Security tab)
+# and as an artifact. A public badge can be added to the README:
+#   https://api.securityscorecards.dev/projects/github.com/hbirring01/Stash/badge
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # Required to upload SARIF.
+      security-events: write
+      # Required by Scorecard's branch-protection check.
+      id-token: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          # Publish the score so the public badge resolves. Safe for public
+          # repos; remove this if the repo is ever made private.
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: scorecard-results
+          path: scorecard-results.sarif
+          retention-days: 14
+
+      - name: Upload to Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: scorecard-results.sarif
+          category: ossf-scorecard
