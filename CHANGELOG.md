@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/hbirring01/Stash/compare/v1.9.0...v1.9.1) (2026-05-23)
+
+
+### Bug Fixes
+
+* **ci:** remove duplicate uses line in scorecard workflow ([#40](https://github.com/hbirring01/Stash/issues/40)) ([5dd3be1](https://github.com/hbirring01/Stash/commit/5dd3be12c07dba29b93467ba98de3eeb3575df42))
+
 ## [1.9.0](https://github.com/hbirring01/Stash/compare/v1.8.0...v1.9.0) (2026-05-22)
 
 
