@@ -60,7 +60,7 @@ okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
 
 security-crypto = { module = "androidx.security:security-crypto", version.ref = "security-crypto" }
-biometric = { module = "androidx.biometric:biometric", version = "1.2.0-alpha05" }
+biometric = { module = "androidx.biometric:biometric", version = "1.4.0-alpha07" }
 
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "play-location" }
 
