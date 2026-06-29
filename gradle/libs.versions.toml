@@ -2,7 +2,7 @@
 agp = "9.2.1"
 kotlin = "2.4.0"
 ksp = "2.3.9"
-hilt = "2.59.2"
+hilt = "2.60"
 compose-bom = "2026.05.00"
 lifecycle = "2.11.0"
 nav = "2.9.8"
