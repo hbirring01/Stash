@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CreditCardApp"
+rootProject.name = "Stash"
 include(":app")

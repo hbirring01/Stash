@@ -2,11 +2,11 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.compose.screenshot)
 }
 
 // Move build outputs outside OneDrive — OneDrive sync corrupts/locks files
@@ -30,13 +30,13 @@ fun localProp(name: String, default: String = "") =
         .trim('"', '\'')
 
 android {
-    namespace = "com.example.creditcardapp"
-    compileSdk = 34
+    namespace = "com.app.stash.android"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.creditcardapp"
+        applicationId = "com.app.stash.android"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         // versionCode/versionName can be overridden by CI via env vars
         // (set from the git tag in release.yml). Falls back to 1 / "1.0" locally.
         versionCode = (System.getenv("RELEASE_VERSION_CODE") ?: "1").toInt()
@@ -53,14 +53,23 @@ android {
     }
 
     signingConfigs {
-        // Stable signing key committed to the repo (app/upgrade.keystore).
-        // This is NOT a Play Store key — purpose is solely to keep the APK
-        // signature consistent across releases so installs preserve user data.
-        create("upgrade") {
-            storeFile = file("upgrade.keystore")
-            storePassword = "stashapp"
-            keyAlias = "upgrade"
-            keyPassword = "stashapp"
+        // Stable signing key for consistent APK signatures across releases.
+        // Credentials are read from local.properties (not committed) or
+        // environment variables so they never appear in version control.
+        //
+        // Dependabot PRs and fork PRs don't have access to repo secrets, so
+        // SIGNING_STORE_PASSWORD will be empty — in that case we skip
+        // creating the config and let AGP fall back to the auto-generated
+        // debug keystore. Release builds in release.yml always have the
+        // secrets and so always use the upgrade key.
+        val storePwd = localProp("SIGNING_STORE_PASSWORD")
+        if (storePwd.isNotEmpty()) {
+            create("upgrade") {
+                storeFile = file(localProp("SIGNING_STORE_FILE", "upgrade.keystore"))
+                storePassword = storePwd
+                keyAlias = localProp("SIGNING_KEY_ALIAS", "upgrade")
+                keyPassword = localProp("SIGNING_KEY_PASSWORD")
+            }
         }
     }
 
@@ -70,13 +79,15 @@ android {
             // tends to strip Hilt/Room/Retrofit/SQLCipher reflection targets.
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("upgrade")
+            signingConfigs.findByName("upgrade")?.let { signingConfig = it }
         }
         debug {
             isMinifyEnabled = false
-            // Sign debug with the same upgrade key so debug ↔ release APKs
-            // are install-compatible (no data wipe when switching).
-            signingConfig = signingConfigs.getByName("upgrade")
+            // Sign debug with the same upgrade key (when available) so
+            // debug ↔ release APKs are install-compatible (no data wipe
+            // when switching). Without secrets, AGP's default debug
+            // keystore is used.
+            signingConfigs.findByName("upgrade")?.let { signingConfig = it }
         }
     }
 
@@ -85,14 +96,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
     }
+
+    // First-party Compose Preview Screenshot Testing (AGP 9 stable, plugin
+    // `com.android.compose.screenshot`). Generates PNG snapshots from
+    // @Preview functions in src/screenshotTest. Run locally with
+    // `./gradlew :app:updateDebugScreenshotTest`.
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
 
     packaging {
         resources {
@@ -103,6 +116,12 @@ android {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 dependencies {
@@ -153,4 +172,13 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // screenshotTest source set needs the preview tooling on its classpath
+    // so @Preview-annotated Composables resolve.
+    screenshotTestImplementation(platform(libs.compose.bom))
+    screenshotTestImplementation(libs.compose.ui.tooling)
+    screenshotTestImplementation(libs.compose.ui.tooling.preview)
+    screenshotTestImplementation(libs.compose.material3)
+    screenshotTestImplementation(libs.compose.material.icons.extended)
+    screenshotTestImplementation(libs.screenshot.validation.api)
 }

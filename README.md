@@ -3,9 +3,10 @@
 Android app that tells you **which credit card to swipe at the business in front of you** for the highest rewards. Pulls your linked cards via Plaid, finds nearby businesses via Foursquare + OpenStreetMap, and ranks every visible place by the multiplier your cards earn there.
 
 <p align="center">
-  <img src="screenshots/map.png"      width="240" alt="Rewards map with AI best-card hero" />
-  <img src="screenshots/wallet.png"   width="240" alt="Wallet / cards home" />
-  <img src="screenshots/settings.png" width="240" alt="Settings · API keys" />
+  <img src="screenshots/map.png"      width="220" alt="Rewards tab — map with AI best-card hero" />
+  <img src="screenshots/offers.png"   width="220" alt="Offers tab — card-linked issuer offers" />
+  <img src="screenshots/wallet.png"   width="220" alt="Wallet / cards home" />
+  <img src="screenshots/settings.png" width="220" alt="Settings — keys, theme, version" />
 </p>
 
 <p align="center">
@@ -16,14 +17,23 @@ Android app that tells you **which credit card to swipe at the business in front
 
 ---
 
-## What's new in v1.5.0
+## What's new in v1.7.7
 
-- 🧭 **Dedicated Rewards + Offers tabs** — Rewards Hub and card-linked offers now live on their own bottom-nav tabs instead of being tucked into other screens, so the top-level app flow is Wallet → Map → Rewards → Offers → Settings.
-- 🗺️ **Smoother map/list handoff** — the rewards map collapses and expands more predictably as you scroll, and the list now snaps back to the currently selected place without fighting the map header.
-- ✨ **Cleaner top-level surfaces** — Rewards Hub and Offers render as standalone destinations with simplified chrome, which keeps the shared home pager consistent and removes redundant back affordances.
-- 🎯 **Card-linked offers tracker** — surfaces active issuer offers (Amex, Chase, etc.) you can manually add, see your savings progress on, and one-tap deep-link into the issuer app to activate.
-- 🛎️ **Proximity notifications** — when you walk into a place that matches one of your unactivated offers, you get a notification with a tap-through to activate. Works both in the foreground (map open) and **in the background via system geofences** — fully opt-in with a clear two-step location permission flow.
-- 🔁 **Boot recovery** — geofences are automatically re-installed after device reboot or app upgrade via a `BroadcastReceiver` + `HiltWorker`, so background offer alerts survive power cycles without needing you to reopen the app.
+- ⚡ **Faster map business lookup** — the Rewards tab now feels snappy when you open it or pan to a new area:
+  - **Overpass mirrors race in parallel** instead of sequentially. The fastest of the three OSM mirrors wins; if one is slow or returning 504, you no longer wait for its timeout before the next is tried.
+  - **In-memory cache** for `nearby()` results (rounded to ~110 m, 5-minute TTL, 32 entries). Rapid re-opens, zoom-outs, and small pans hit the cache instead of refiring the network.
+  - **Parallelized data load** in `RewardsMapViewModel.applyLocation`: cards, rotating bonuses, unactivated offers, and the places call now run concurrently rather than one-after-another.
+  - **Tighter Overpass QL timeout** (25s → 15s) so slow mirrors fail fast and the race resolves sooner.
+
+## What's new in v1.7.6
+
+- ↩️ **Undo on usage delete** — deleting a statement-credit usage now shows a "Usage deleted" snackbar with an **Undo** action. Undo restores the original row (preserving its `MANUAL` / `AUTO` / `AI` source and timestamp) and, for auto-logged rows, removes the dismissal so the matcher's state stays consistent.
+- 🔁 **Manual rescan per credit** — the credit row's overflow menu now has a **Rescan** action for auto-tracked credits. Re-runs `StatementCreditAutoMatcher.rescanForCredit` against that card's transaction history without waiting for the next Plaid sync — useful after editing match rules or when a transaction posts late.
+
+## What's new in v1.7.5
+
+- 🗝️ **Foursquare onboarding banner** — when the Rewards map empty state shows up and you haven't configured a Foursquare API key yet, a "Coverage looks thin here" card explains why (OSM-only is sparse in suburbs/rural areas) and offers an **Open Settings** chip that deep-links straight to the Settings page so you can paste a free-tier key.
+- 🔁 **AI retry/backoff** — `AiMatchClient` now retries transient `429` (rate-limited) and `503` (overloaded) responses with exponential backoff (500 ms → 1 s → 2 s, up to 3 attempts) and honors any server-provided `Retry-After` header. Most free-tier bursts now resolve silently instead of giving up after one try.
 
 ## Features
 
@@ -108,11 +118,13 @@ sdk.dir=C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
 # Get a free key at https://foursquare.com/developers/
 FOURSQUARE_API_KEY=fsq3YOUR_KEY_HERE
 
-# Optional — release signing
-# RELEASE_STORE_FILE=/path/to/keystore.jks
-# RELEASE_STORE_PASSWORD=…
-# RELEASE_KEY_ALIAS=…
-# RELEASE_KEY_PASSWORD=…
+# Optional — release signing. CI reads these from repo secrets; for local
+# release builds, set them here. Debug builds work without them (the gradle
+# config falls back to an unsigned debug keystore).
+# SIGNING_STORE_FILE=upgrade.keystore
+# SIGNING_STORE_PASSWORD=…
+# SIGNING_KEY_ALIAS=upgrade
+# SIGNING_KEY_PASSWORD=…
 ```
 
 ### Build & run
@@ -133,7 +145,7 @@ Tap **Set up Plaid** on first launch (or **Settings → Plaid keys** later) and 
 
 Keys are stored in `EncryptedSharedPreferences` and never displayed back. To rotate, just paste a new value over the old one.
 
-The bundled `server/` directory has a small Node.js proxy that exchanges public tokens for access tokens — required for any non-trivial use. See [server/README.md](server/README.md).
+The bundled `server/` directory is an **optional hardened Plaid proxy** that lets you keep your `client_id` / `secret` off the device entirely. The app currently talks to Plaid directly; the proxy is included as scaffolding if you ever want to migrate. See [server/README.md](server/README.md).
 
 ## Configuration knobs
 

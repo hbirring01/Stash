@@ -6,42 +6,121 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Least-privilege default. The `dependency-review` job re-grants what it needs.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Defensive cap so a hung Gradle daemon / network stall can't burn 6h
+    # of Actions minutes. Healthy runs finish in well under 10 min.
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      # Verifies gradle-wrapper.jar against the published Gradle checksum
+      # registry. Catches tampered wrappers in PRs (a classic supply-chain
+      # vector for Android repos).
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Lint
-        run: ./gradlew lintDebug --no-daemon
-        env:
-          FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
+      - name: Decode signing keystore
+        # Debug builds are intentionally signed with the upgrade key so
+        # debug <-> release APKs are install-compatible (no data wipe when
+        # switching), so the keystore is needed even for assembleDebug.
+        run: |
+          if [ -z "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::SIGNING_KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > app/upgrade.keystore
 
-      - name: Unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+      - name: Lint + unit tests + assemble debug
+        # Chained into a single Gradle invocation so configuration runs once
+        # and the Kotlin / KSP compilers stay warm across tasks.
+        run: ./gradlew lintDebug testDebugUnitTest assembleDebug
         env:
           FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
-
-      - name: Assemble debug
-        run: ./gradlew assembleDebug --no-daemon
-        env:
-          FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
+          # APKs are already aapt-compressed; level 9 still trims a few
+          # percent off the artifact zip with negligible CPU cost.
+          compression-level: 9
+
+      # Surface the APK size + sha on the Actions run page so reviewers don't
+      # have to download the artifact just to sanity-check it.
+      - name: APK summary
+        if: success()
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          SIZE=$(du -h "$APK" | cut -f1)
+          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+          {
+            echo "### Debug APK"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Size | $SIZE |"
+            echo "| SHA-256 | \`$SHA\` |"
+            echo "| Commit | \`${GITHUB_SHA::7}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Preserve diagnostic output when the chained Gradle call fails so we
+      # don't have to re-run the workflow with extra flags just to read a
+      # lint report or a JUnit failure stack.
+      - name: Upload lint + test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Supply-chain guardrail: flag dependency bumps with known CVEs or
+  # disallowed licenses before they hit main. PR-only because pushes to main
+  # have already been reviewed.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

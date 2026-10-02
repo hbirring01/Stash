@@ -1,13 +1,16 @@
 {
-  "name": "creditcardapp-plaid-server",
+  "name": "stash-plaid-server",
   "version": "1.0.0",
-  "description": "Minimal Plaid sandbox proxy for CreditCardApp.",
+  "description": "Hardened Plaid proxy for StashApp.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
     "node-fetch": "^2.7.0"
   }
 }

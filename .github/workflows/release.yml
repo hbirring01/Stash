@@ -6,29 +6,49 @@ on:
       - 'v*'
   workflow_dispatch:
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
+  # attest-build-provenance needs id-token (Sigstore OIDC) + attestations.
+  id-token: write
+  attestations: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Release builds run assembleRelease + sign + GitHub Release upload; a
+    # hung sign step would otherwise sit forever.
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
+
+      - name: Decode signing keystore
+        run: |
+          if [ -z "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::SIGNING_KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > app/upgrade.keystore
 
       - name: Compute versionCode / versionName from tag
         id: ver
@@ -43,11 +63,13 @@ jobs:
           echo "Resolved versionName=$VERSION_NAME versionCode=$VERSION_CODE"
 
       - name: Assemble release APK
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease
         env:
           FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
           RELEASE_VERSION_NAME: ${{ steps.ver.outputs.name }}
           RELEASE_VERSION_CODE: ${{ steps.ver.outputs.code }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
       - name: Rename APK
         id: apk
@@ -59,6 +81,16 @@ jobs:
           SHA=$(sha256sum "$APK" | cut -d' ' -f1)
           echo "size=$SIZE" >> "$GITHUB_OUTPUT"
           echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+
+      # SLSA build provenance: publishes a signed attestation to Sigstore
+      # tying this APK's sha256 to this workflow run + commit. Lets users
+      # verify the APK was built by GitHub Actions from this repo via:
+      #   gh attestation verify StashApp-vX.Y.Z.apk --owner hbirring01
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ${{ steps.apk.outputs.path }}
 
       - name: Build changelog from commits
         id: changelog
@@ -74,6 +106,20 @@ jobs:
             COMPARE="https://github.com/${{ github.repository }}/compare/${PREV}...${TAG}"
           fi
           echo "Computing changelog for range: $RANGE"
+
+          # Detect the one-time applicationId rename that landed in commit
+          # f27a555 (com.example.creditcardapp -> com.app.stash.android).
+          # Show the uninstall-and-reinstall warning only when this TAG ships
+          # under the new id AND PREV still ships under the old one — so that
+          # cherry-picked v1.7.x bugfix tags (which don't contain the rename)
+          # don't get a misleading warning.
+          PRE_RENAME=false
+          RENAME_COMMIT=f27a555038f4e17dcfde7944a454006382e9682e
+          if [ -n "$PREV" ] \
+            && git merge-base --is-ancestor "$RENAME_COMMIT" "$TAG" \
+            && ! git merge-base --is-ancestor "$RENAME_COMMIT" "$PREV"; then
+            PRE_RENAME=true
+          fi
 
           # Group commits by conventional-commit prefix
           feats=$(git log --no-merges --pretty=format:'- %s (%h)' $RANGE | grep -iE '^- (feat|feature)(\(.*\))?:' || true)
@@ -95,7 +141,11 @@ jobs:
             echo "- Size: ${{ steps.apk.outputs.size }}"
             echo "- SHA-256: \`${{ steps.apk.outputs.sha256 }}\`"
             echo ""
-            echo "> Signed with the stable upgrade keystore — installs over previous v1.1+ builds **without wiping data**."
+            if [ "$PRE_RENAME" = "true" ]; then
+              echo "> ⚠️ **Upgrading from ${PREV}?** This release moves to a new package id (\`com.app.stash.android\`, previously \`com.example.creditcardapp\`). Android treats it as a separate app, so you must **uninstall the old app first** (local data will be lost) and install this APK fresh. Subsequent v1.8.0+ updates will install in place without data loss."
+            else
+              echo "> Signed with the stable upgrade keystore — installs over previous v1.8.0+ builds **without wiping data**."
+            fi
             echo ""
             echo "### ✨ What's Changed"
             [ -n "$feats" ]  && { echo ""; echo "#### 🚀 Features";        echo "$feats"; }
@@ -117,7 +167,9 @@ jobs:
           cat RELEASE_NOTES.md
 
       - name: Create GitHub Release and upload APK
-        uses: softprops/action-gh-release@v2
+        # Pinned to SHA (v3.0.0) for supply-chain safety. Re-pin via:
+        #   gh api repos/softprops/action-gh-release/git/ref/tags/v3 --jq .object.sha
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           name: StashApp ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}

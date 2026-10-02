@@ -9,6 +9,10 @@ on:
     # Weekly scan, Mondays at 06:00 UTC
     - cron: '0 6 * * 1'
 
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 permissions:
   actions: read
   contents: read
@@ -18,34 +22,53 @@ jobs:
   analyze:
     name: Analyze (java-kotlin)
     runs-on: ubuntu-latest
+    # CodeQL analysis (with build) typically runs ~10 min; this is a safety
+    # net for runaway extractor / query evaluation.
+    timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
           build-mode: manual
+          # Broader query pack: includes maintainability + reliability rules
+          # on top of the default security set. Adds ~1-2 min to analysis.
+          queries: security-extended
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Decode signing keystore
+        # Debug build signed with the upgrade key (see app/build.gradle.kts).
+        run: |
+          if [ -z "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::SIGNING_KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > app/upgrade.keystore
+
       - name: Build
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug
         env:
           FOURSQUARE_API_KEY: ${{ secrets.FOURSQUARE_API_KEY }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:java-kotlin"

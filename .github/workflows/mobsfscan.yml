@@ -1,0 +1,45 @@
+name: MobSF Scan
+
+# Android-specific SAST via mobsfscan. Catches things CodeQL doesn't:
+# exported activities/providers without permissions, insecure WebView config,
+# weak crypto APIs, hardcoded URLs/secrets, insecure SharedPreferences usage,
+# etc. Results land in the GitHub Security tab via SARIF.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly Monday 09:00 UTC catch-all in case ruleset updates flag something
+    # in unchanged code.
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: mobsfscan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobsfscan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run mobsfscan
+        # Pinned to a SHA so a future malicious tag push can't compromise CI.
+        uses: MobSF/mobsfscan@3d87bc570c4614d705547bddb521395663dba353 # 0.4.5
+        with:
+          args: '. --sarif --output mobsfscan.sarif || true'
+
+      - name: Upload SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: mobsfscan.sarif
+          category: mobsfscan

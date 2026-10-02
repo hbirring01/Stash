@@ -1,0 +1,44 @@
+name: Gitleaks
+
+# Scans the full git history (and every PR diff) for committed secrets that
+# GitHub's native partner-pattern scanner doesn't recognise: custom token
+# formats, base64-encoded credentials, .env files, etc.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  # gitleaks-action posts PR comments on findings.
+  pull-requests: write
+
+concurrency:
+  group: gitleaks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Need full history so the scanner can audit old commits, not just
+          # the tip of the PR branch.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE is only required for orgs. Personal repos and
+          # individual accounts run free.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
+          GITLEAKS_ENABLE_SUMMARY: true
