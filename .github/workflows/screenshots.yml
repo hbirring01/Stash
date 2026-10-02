@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # Need a writable token so the auto-commit step can push back to
           # main. The default GITHUB_TOKEN is sufficient because the
