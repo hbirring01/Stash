@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.9.3](https://github.com/hbirring01/Stash/compare/v1.9.2...v1.9.3) (2026-10-02)
+
+
+### Dependencies
+
+* **deps:** bump androidx.compose:compose-bom ([#43](https://github.com/hbirring01/Stash/issues/43)) ([790a7df](https://github.com/hbirring01/Stash/commit/790a7df81c51cf6a3dac840f2a9ddc6c5c6bf380))
+* **deps:** bump compose-screenshot from 0.0.1-alpha15 to 0.0.1-alpha16 ([#61](https://github.com/hbirring01/Stash/issues/61)) ([b0b1ed1](https://github.com/hbirring01/Stash/commit/b0b1ed1d8235f1a4ff6db7b5a92ccd08f02ecd91))
+* **deps:** bump okhttp from 5.4.0 to 5.5.0 ([#67](https://github.com/hbirring01/Stash/issues/67)) ([131b2cf](https://github.com/hbirring01/Stash/commit/131b2cfcab8f5db17e0088f760e113a016df853a))
+
 ## [1.9.2](https://github.com/hbirring01/Stash/compare/v1.9.1...v1.9.2) (2026-10-02)
 
 
