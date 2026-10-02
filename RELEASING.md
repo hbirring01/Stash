@@ -15,7 +15,7 @@ Your job as the releaser is to bump the version, update the README "What's new" 
   - `SIGNING_STORE_PASSWORD`
   - `SIGNING_KEY_PASSWORD`
 
-## 2. Bump version
+## 2. Pick the next tag
 
 The workflow injects `versionName` from the git tag, so you only need to bump `versionCode`. Edit `app/build.gradle.kts`:
 
@@ -66,6 +66,24 @@ If this release adds a new third-party service, new permission, or changes what 
 
 ```powershell
 git add -A
+git commit -m "release: v1.5.0 — <one-line summary>"
+git tag v1.5.0
+git push origin main --tags
+```
+
+Pushing the tag triggers `.github/workflows/release.yml`, which:
+
+- builds the signed release APK,
+- renames it to `StashApp-vX.Y.Z.apk`,
+- generates release notes from the commits since the previous tag, and
+- publishes the GitHub Release automatically.
+
+## 7. Verify the GitHub release
+
+- [ ] Open https://github.com/hbirring01/Stash/releases
+- [ ] Confirm the new tag published as `StashApp v1.5.0`
+- [ ] Verify the release body includes the expected "What's Changed" bullets
+- [ ] Download the attached `StashApp-v1.5.0.apk` asset and confirm the SHA/size render correctly
 git commit -m "release: v1.8.0 — <one-line summary>"
 git tag v1.8.0
 git push origin main
