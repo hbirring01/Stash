@@ -27,7 +27,7 @@ jobs:
     # one project ever wires it in; until then this is informational.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: ktlint
         uses: ScaCap/action-ktlint@26c5e9b625966139d9956cbbb6217375480d4e14 # v1.9.0
         with:
@@ -44,7 +44,7 @@ jobs:
     env:
       DETEKT_VERSION: 1.23.7
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
